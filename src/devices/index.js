@@ -44,6 +44,55 @@ export function findBlueprintByDevice(gladys, device) {
 }
 
 /**
+ * List the devices the user already created whose features no longer match the
+ * ones we publish today.
+ *
+ * Why this check exists: `publishDiscoveredDevices` is NOT an upsert of an
+ * already-created device. The Gladys core stores the published list in memory
+ * for the Discovery screen and, for a device the user has already created, only
+ * upserts its `params` — never its features (see
+ * `externalIntegration.setDiscoveredDevices` in the Gladys server). So a device
+ * created by an older version of this integration keeps the feature external_ids
+ * it was created with, forever.
+ *
+ * The failure that follows is completely silent from here: Gladys accepts the
+ * states, finds no feature for the external_id, and drops them with an `info`
+ * line in the SERVER logs. The device then sits in the UI with a "no recent
+ * value" badge, which is exactly the symptom this function turns into an
+ * actionable message.
+ * @param {object} gladys - The SDK instance.
+ * @param {object[]} createdDevices - The devices actually created by the user (gladys.getDevices()).
+ * @param {object} config - Normalized configuration.
+ * @returns {{name: string, deviceExternalId: string, missingFeatures: string[]}[]} One entry per outdated device.
+ */
+export function findOutdatedDevices(gladys, createdDevices, config) {
+  const outdated = [];
+
+  for (const blueprint of DEVICE_BLUEPRINTS) {
+    const deviceExternalId = blueprint.deviceExternalId(gladys);
+    const created = (createdDevices ?? []).find(
+      (device) => device.external_id === deviceExternalId,
+    );
+    // Not created yet: the user has not added it from the Discovery screen.
+    // That is a normal state, not an outdated device.
+    if (created === undefined) {
+      continue;
+    }
+    const present = new Set((created.features ?? []).map((feature) => feature.external_id));
+    const missingFeatures = blueprint
+      .buildDevice(gladys, config)
+      .features.map((feature) => feature.external_id)
+      .filter((externalId) => !present.has(externalId));
+
+    if (missingFeatures.length > 0) {
+      outdated.push({ name: created.name, deviceExternalId, missingFeatures });
+    }
+  }
+
+  return outdated;
+}
+
+/**
  * Forget every published value, so the next refresh publishes a full snapshot.
  * @returns {void}
  */

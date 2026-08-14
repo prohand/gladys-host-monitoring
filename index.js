@@ -22,6 +22,7 @@ import {
   DEVICE_BLUEPRINTS,
   buildDiscoveredDevices,
   findBlueprintByDevice,
+  findOutdatedDevices,
   resetThrottles,
 } from './src/devices/index.js';
 
@@ -70,7 +71,12 @@ gladys.onConfigUpdated(async (newConfig) => {
   config = normalizeConfig(newConfig);
   // Re-publish the device: the name, the history flag and the presence of the
   // temperature feature all depend on the configuration.
-  // publishDiscoveredDevices is idempotent (upsert by external_id).
+  //
+  // Careful, this only refreshes the DISCOVERY entry: for a device the user has
+  // already created, the Gladys core re-upserts its params and nothing else, so
+  // the features (and their keep_history flag) keep the shape they had at
+  // creation time. Changing those settings on an existing device means removing
+  // it and adding it again — see findOutdatedDevices().
   await gladys.publishDiscoveredDevices(buildDiscoveredDevices(gladys, config));
   // Restart the refresh loops so a new interval takes effect immediately,
   // instead of at the end of the current (possibly one hour long) tick.
@@ -89,14 +95,32 @@ gladys.on('connected', async () => {
     // 2) (Re)publish the device as soon as we are connected.
     await gladys.publishDiscoveredDevices(buildDiscoveredDevices(gladys, config));
 
-    // 3) Start the refresh loop. It publishes a first snapshot immediately:
+    // 3) Compare what we are about to publish with what the user actually has:
+    // a device created by an older version keeps its original features, and
+    // every state we send for a feature it does not carry is dropped by the
+    // core without a word. Detected here, it becomes a message in the
+    // Configuration screen instead of a device stuck on "no recent value".
+    const outdatedDevices = findOutdatedDevices(gladys, await gladys.getDevices(), config);
+    for (const device of outdatedDevices) {
+      logger.warn(
+        `Device "${device.name}" (${device.deviceExternalId}) does not carry the feature(s) ` +
+          `${device.missingFeatures.join(', ')}: their values will be ignored by Gladys. ` +
+          'Remove the device in Gladys and add it again from the Discovery screen.',
+      );
+    }
+
+    // 4) Start the refresh loop. It publishes a first snapshot immediately:
     // whatever we held back while disconnected is republished.
     restartRefreshLoops();
 
-    // 4) Report the application-level status, shown in the Configuration
+    // 5) Report the application-level status, shown in the Configuration
     // screen. Distinct from the container state machine: an integration can be
     // RUNNING and still unable to read what it supervises.
-    await gladys.setConnectionStatus(true);
+    if (outdatedDevices.length > 0) {
+      await gladys.setConnectionStatus(false, outdatedDevicesMessage(outdatedDevices));
+    } else {
+      await gladys.setConnectionStatus(true);
+    }
   } catch (err) {
     logger.error('Post-connection initialization failed', err);
     await gladys
@@ -111,6 +135,27 @@ gladys.on('connected', async () => {
 gladys.on('disconnected', () => {
   stopRefreshLoops();
 });
+
+/**
+ * Turn the outdated devices into the message shown in the Configuration
+ * screen. It names the culprit and gives the only fix: the core never updates
+ * the features of a device already created, so it has to be created again.
+ * @param {{name: string, missingFeatures: string[]}[]} devices - Outdated devices.
+ * @returns {{en: string, fr: string}} The message.
+ */
+function outdatedDevicesMessage(devices) {
+  const names = devices.map((device) => `"${device.name}"`).join(', ');
+  return {
+    en:
+      `${names}: this device was created with an older version of the integration and no longer ` +
+      'carries the features published today, so its values are ignored. Remove it in Gladys, ' +
+      'then add it again from the Discovery screen.',
+    fr:
+      `${names} : cet appareil a été créé avec une version plus ancienne de l'intégration et ne ` +
+      "porte plus les fonctionnalités publiées aujourd'hui, ses valeurs sont donc ignorées. " +
+      "Supprimez-le dans Gladys, puis rajoutez-le depuis l'écran Découverte.",
+  };
+}
 
 /**
  * Stop the running refresh loops, then start them again with the current

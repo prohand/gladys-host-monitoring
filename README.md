@@ -28,6 +28,12 @@ The temperature feature is only published when a readable sensor is found, so a
 VM without thermal sensors gets four working features instead of one broken
 fifth.
 
+Gladys has no category for computer resources. The three percentages use
+`level-sensor` / `decimal`, a supported generic combination that renders as a
+plain percentage sensor with charts — the category is only a label and an icon
+here (a water drop, since `level-sensor` is primarily the liquid-level
+category), never something the core looks at when storing a value.
+
 ## Not flooding the Gladys database
 
 This is the design constraint the whole integration is built around.
