@@ -1,0 +1,168 @@
+{
+  "manifest_version": 1,
+  "type": "device",
+  "name": "Supervision hôte",
+  "description": {
+    "en": "Reports the CPU, memory, disk usage and CPU temperature of the machine running Gladys.",
+    "fr": "Remonte l'usage CPU, la mémoire, l'espace disque et la température CPU de la machine hôte."
+  },
+  "version": "1.0.0",
+  "docker_image": "ghcr.io/prohand/gladys-host-monitoring:1.0.0",
+  "gladys_version": ">=4.85.0",
+  "cover_image": "https://raw.githubusercontent.com/prohand/gladys-host-monitoring/main/cover.png",
+  "transports": ["local"],
+  "config_schema": [
+    {
+      "key": "intro",
+      "type": "section",
+      "label": { "en": "Host supervision", "fr": "Supervision de l'hôte" },
+      "description": {
+        "en": "One device exposing the health of the machine that runs Gladys: CPU usage, memory usage, disk usage, free disk space and CPU temperature. Everything is read locally from /proc and /sys, no agent and no cloud service involved.",
+        "fr": "Un appareil qui expose la santé de la machine qui fait tourner Gladys : usage CPU, usage mémoire, usage disque, espace disque libre et température du CPU. Tout est lu localement dans /proc et /sys, sans agent ni service cloud."
+      },
+      "links": [
+        {
+          "url": "https://github.com/prohand/gladys-host-monitoring",
+          "label": { "en": "Source code and documentation", "fr": "Code source et documentation" }
+        }
+      ]
+    },
+    {
+      "key": "device_name",
+      "type": "string",
+      "label": { "en": "Device name", "fr": "Nom de l'appareil" },
+      "description": {
+        "en": "Name of the device created in Gladys. Useful when several machines are monitored.",
+        "fr": "Nom de l'appareil créé dans Gladys. Utile si vous supervisez plusieurs machines."
+      },
+      "required": false,
+      "default": "Machine hôte",
+      "placeholder": { "en": "Gladys server", "fr": "Serveur Gladys" }
+    },
+    {
+      "key": "disk_path",
+      "type": "string",
+      "label": { "en": "Disk path to monitor", "fr": "Chemin du disque à surveiller" },
+      "description": {
+        "en": "Path whose filesystem is measured. The default /data is the integration volume, hosted on the same filesystem as your Gladys data.",
+        "fr": "Chemin dont le système de fichiers est mesuré. La valeur /data par défaut est le volume de l'intégration, situé sur le même système de fichiers que vos données Gladys."
+      },
+      "required": false,
+      "default": "/data",
+      "placeholder": { "en": "/data", "fr": "/data" }
+    },
+    {
+      "key": "temperature_sensor_path",
+      "type": "string",
+      "label": {
+        "en": "CPU temperature sensor (optional)",
+        "fr": "Sonde de température CPU (optionnel)"
+      },
+      "description": {
+        "en": "Leave empty to auto-detect. Otherwise, the sysfs file to read, e.g. /sys/class/thermal/thermal_zone0/temp.",
+        "fr": "Laissez vide pour une détection automatique. Sinon, le fichier sysfs à lire, par exemple /sys/class/thermal/thermal_zone0/temp."
+      },
+      "required": false,
+      "default": "",
+      "placeholder": {
+        "en": "/sys/class/thermal/thermal_zone0/temp",
+        "fr": "/sys/class/thermal/thermal_zone0/temp"
+      }
+    },
+    {
+      "key": "history",
+      "type": "section",
+      "label": { "en": "Refresh rate and history", "fr": "Fréquence et historique" },
+      "description": {
+        "en": "Gladys writes one history row per published value, so a host monitor left unchecked fills the database fast. The integration reads the metrics on its own schedule and only publishes a value when it moved more than the thresholds below — with a guaranteed point at least once per maximum interval so the charts stay continuous.",
+        "fr": "Gladys écrit une ligne d'historique par valeur publiée : un moniteur laissé sans garde-fou remplit vite la base. L'intégration lit les métriques à son propre rythme et ne publie une valeur que si elle a bougé de plus que les seuils ci-dessous — avec un point garanti au moins une fois par intervalle maximum pour que les courbes restent continues."
+      }
+    },
+    {
+      "key": "refresh_interval",
+      "type": "number",
+      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
+      "description": {
+        "en": "How often the metrics are read, in seconds. 300 s (5 minutes) is plenty for host supervision.",
+        "fr": "Fréquence de lecture des métriques, en secondes. 300 s (5 minutes) suffit largement pour superviser un hôte."
+      },
+      "required": false,
+      "default": 300,
+      "min": 60,
+      "max": 3600
+    },
+    {
+      "key": "min_variation",
+      "type": "number",
+      "label": { "en": "Minimum variation (%)", "fr": "Variation minimale (%)" },
+      "description": {
+        "en": "A percentage reading is only published when it moved by at least this many points since the last published value. 0 publishes every reading.",
+        "fr": "Une mesure en pourcentage n'est publiée que si elle a bougé d'au moins autant de points depuis la dernière valeur publiée. 0 publie chaque mesure."
+      },
+      "required": false,
+      "default": 2,
+      "min": 0,
+      "max": 50
+    },
+    {
+      "key": "min_variation_temperature",
+      "type": "number",
+      "label": { "en": "Minimum variation (°C)", "fr": "Variation minimale (°C)" },
+      "description": {
+        "en": "Same threshold, applied to the CPU temperature.",
+        "fr": "Même seuil, appliqué à la température du CPU."
+      },
+      "required": false,
+      "default": 1,
+      "min": 0,
+      "max": 20
+    },
+    {
+      "key": "max_interval_minutes",
+      "type": "number",
+      "label": {
+        "en": "Maximum interval without a point (min)",
+        "fr": "Intervalle maximum sans point (min)"
+      },
+      "description": {
+        "en": "Even when nothing moves, each metric is published at least once per this interval so the charts keep a continuous line.",
+        "fr": "Même si rien ne bouge, chaque métrique est publiée au moins une fois par intervalle pour que les courbes gardent une ligne continue."
+      },
+      "required": false,
+      "default": 60,
+      "min": 5,
+      "max": 1440
+    },
+    {
+      "key": "keep_history",
+      "type": "boolean",
+      "label": { "en": "Keep history", "fr": "Conserver l'historique" },
+      "description": {
+        "en": "Applied when the device is created. Turn it off to keep only the live values, with no history row at all.",
+        "fr": "Appliqué à la création de l'appareil. Désactivez-le pour ne garder que les valeurs instantanées, sans aucune ligne d'historique."
+      },
+      "required": false,
+      "default": true
+    }
+  ],
+  "actions": [
+    {
+      "key": "test_metrics",
+      "label": { "en": "Read the metrics now", "fr": "Lire les métriques maintenant" },
+      "description": {
+        "en": "Reads every metric immediately and shows the result, without waiting for the next refresh.",
+        "fr": "Lit toutes les métriques immédiatement et affiche le résultat, sans attendre le prochain rafraîchissement."
+      },
+      "timeout_seconds": 30
+    },
+    {
+      "key": "list_temperature_sensors",
+      "label": { "en": "List temperature sensors", "fr": "Lister les sondes de température" },
+      "description": {
+        "en": "Shows the sysfs temperature sensors visible from the container, to fill in the sensor path by hand.",
+        "fr": "Affiche les sondes de température sysfs visibles depuis le conteneur, pour renseigner le chemin à la main."
+      },
+      "timeout_seconds": 30
+    }
+  ]
+}

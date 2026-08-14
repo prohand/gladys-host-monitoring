@@ -1,0 +1,112 @@
+# Host supervision
+
+This integration creates **one device** in Gladys, representing the machine
+Gladys runs on, with five sensors:
+
+| Sensor          | Unit | Source                           |
+| --------------- | ---- | -------------------------------- |
+| CPU usage       | %    | `/proc/stat`                     |
+| Memory usage    | %    | `/proc/meminfo` (`MemAvailable`) |
+| Disk usage      | %    | `statfs()` on the monitored path |
+| Free disk space | GiB  | `statfs()` on the monitored path |
+| CPU temperature | °C   | `/sys/class/thermal` or `hwmon`  |
+
+Everything is read **locally**, on the machine: no agent to install, no cloud
+service, no data leaving your home.
+
+## Installation
+
+1. Install the integration from the Gladys catalog.
+2. Open the **Configuration** tab and save (the defaults are fine for the vast
+   majority of setups).
+3. Go to the **Discovery** tab: the "Machine hôte" device shows up, click
+   **Add**.
+
+The first values are published within seconds, then every 5 minutes.
+
+## Refresh rate and database size
+
+This is the point that shapes the whole integration. Gladys **writes one
+history row for every published value**: there is no server-side deduplication.
+A system monitor publishing 5 metrics every 30 seconds writes roughly
+**5 million rows a year**, the vast majority of them repeating the previous
+value. On a Raspberry Pi with an SD card, that costs both space and write
+endurance.
+
+Three guardrails, all tunable in the Configuration screen:
+
+- **Refresh interval** (300 s by default, 60 s minimum) — how often the metrics
+  are read. The integration runs its own timer: it does not use the Gladys
+  scheduler, which cannot go slower than one read per minute.
+- **Minimum variation** (2 percentage points / 1 °C by default) — a value is
+  only published when it moved by at least this much since the **last published
+  value**. A slow drift therefore always crosses the threshold eventually, while
+  background noise stops filling the database. Set it to 0 to publish
+  everything.
+- **Maximum interval without a point** (60 min by default) — even when nothing
+  moves, each sensor is published at least once per hour, so the charts keep a
+  continuous line.
+
+With the default settings, a quiet machine typically writes **a few dozen rows
+per day** instead of tens of thousands.
+
+The **Keep history** switch goes one step further: turned off, the sensors still
+show their live value but write no history row at all. Note that this setting is
+applied **when the device is created**; if the device already exists, change it
+directly on the device page in Gladys (each feature has its own "keep history"
+checkbox there).
+
+## Disk space: which disk is measured?
+
+A container does not see the host filesystem, it sees its own. The default path
+`/data` is the **volume Gladys mounts from the host**: it is the filesystem
+holding your Gladys data, so it is the free space that actually matters in
+practice.
+
+To monitor another mount point, put its path in **Disk path to monitor** — as
+long as it is visible from inside the container.
+
+The percentage is computed the way `df` does: root-reserved blocks are excluded,
+so a freshly formatted ext4 filesystem reads 0%, not 5%.
+
+## CPU temperature
+
+The sensor is **auto-detected** among those the kernel exposes under
+`/sys/class/thermal` (Raspberry Pi and ARM boards) and `/sys/class/hwmon`
+(`coretemp` on Intel, `k10temp` on AMD…). Sensors whose name clearly designates
+the CPU are preferred.
+
+If your machine exposes no sensor at all (virtual machine, LXC container,
+non-Linux host), the temperature feature is **simply not created**: the other
+four keep working.
+
+If the chosen sensor is not the right one, use the **List temperature sensors**
+button: it shows every visible sensor with its current reading and marks the one
+in use with a `>`. Copy the path you want into **CPU temperature sensor**.
+
+## Available actions
+
+- **Read the metrics now** — reads everything immediately and shows the result
+  under the button, without waiting for the next refresh. This is the first test
+  to run when a value looks wrong.
+- **List temperature sensors** — see above.
+
+## Troubleshooting
+
+**No value shows up.** Check that the device was actually added from the
+Discovery tab: until it is created, Gladys silently ignores published states.
+
+**The temperature is missing.** That is expected on a VM. Use the **List
+temperature sensors** action to confirm the kernel exposes none.
+
+**The charts look like stairs.** That is the intended behaviour: between two
+published points, the value did not move more than the threshold. Lower the
+**minimum variation** for more detail — at the cost of a bigger database.
+
+**The values look smoothed.** The published CPU usage is the **average over the
+refresh interval**, not an instant sample: a 2-second spike inside a 5-minute
+window stays barely visible. Shorten the interval if you are hunting short
+spikes.
+
+The integration logs every read. Check the logs from the Gladys interface, with
+`LOG_LEVEL=debug` for the full detail.
