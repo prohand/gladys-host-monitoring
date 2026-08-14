@@ -96,6 +96,23 @@ in use with a `>`. Copy the path you want into **CPU temperature sensor**.
 **No value shows up.** Check that the device was actually added from the
 Discovery tab: until it is created, Gladys silently ignores published states.
 
+**The device shows "No recent value".** That badge appears when no state has
+been recorded for 48 hours — so, in practice, never. Use the **Read the metrics
+now** action: it ends with "N state(s) published". If N is at least 1, the
+integration does publish, and the problem is the feature matching described
+right below.
+
+**The device was created by an older version.** Gladys never updates the
+features of a device that already exists: publishing the device again only
+refreshes its entry on the Discovery screen. A device created with older
+identifiers therefore keeps them, and the states published for the new ones are
+dropped without a visible error (the Gladys server logs `DeviceFeature "..."
+not found (or not added to Gladys), skipping state update.`). The integration
+detects this at startup and reports it in the configuration screen. **The only
+fix is to remove the device in Gladys, then add it again from the Discovery
+screen.** That is also how you apply a change to the **Keep history** option, or
+make the temperature appear on a device created before the sensor was detected.
+
 **The temperature is missing.** That is expected on a VM. Use the **List
 temperature sensors** action to confirm the kernel exposes none.
 

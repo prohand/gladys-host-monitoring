@@ -313,9 +313,18 @@ export function createHostMonitor({
 /**
  * Build one of the three percentage features (CPU, memory, disk usage).
  *
- * Gladys has no "computer resource" category; `level-sensor` + a decimal in
- * percent is the closest standard pair, and it renders as a regular percentage
- * sensor with charts.
+ * On the category: Gladys has no "computer resource" category, and none of the
+ * existing ones really fits a CPU or a memory usage. `level-sensor` is the
+ * liquid-level category (its own types are liquid-state, liquid-level-percent
+ * and liquid-depth, and the UI draws it with a water-drop icon), but the
+ * `level-sensor` + `decimal` pair is a supported generic combination: it is
+ * translated ("Level sensor"), it accepts the percent unit, and it renders as a
+ * plain percentage sensor with charts. The alternatives are worse — `unknown` +
+ * `decimal` has no translation at all and shows a raw i18n key.
+ *
+ * The category never affects the values: `device.saveState` stores whatever an
+ * integration publishes without looking at it. What we pick here only changes
+ * the icon and the label in the UI.
  * @param {{name: string, externalId: string, keepHistory: boolean}} options - Feature description.
  * @returns {object} The feature payload.
  */

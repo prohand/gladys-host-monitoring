@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHostMonitor, FEATURE } from '../src/devices/hostMonitor.js';
+import { buildDiscoveredDevices, findOutdatedDevices } from '../src/devices/index.js';
 import { createStateThrottle } from '../src/publish/throttle.js';
 import { normalizeConfig } from '../src/config.js';
 import { createFakeGladys } from './helpers/fakeGladys.js';
@@ -263,4 +264,77 @@ test('list_temperature_sensors explains an empty result instead of failing', asy
   });
   assert.match(message.en, /No readable temperature sensor/);
   assert.ok(message.fr.length > 0);
+});
+
+// --- Outdated devices --------------------------------------------------------
+// The Gladys core never updates the features of a device the user already
+// created: publishing a device again only refreshes the Discovery entry (and
+// the device params). A device created by an older version therefore keeps
+// feature external_ids we no longer publish, and every state we send for the
+// new ones is dropped silently — the "no recent value" badge in the UI.
+
+/**
+ * Build the device the user would have created, from the devices we publish.
+ * @param {object} gladys - The fake SDK.
+ * @param {{drop?: number}} options - How many published features to leave out.
+ * @returns {object} A device in the shape gladys.getDevices() returns.
+ */
+function createdDevice(gladys, { drop = 0 } = {}) {
+  const [published] = buildDiscoveredDevices(gladys, normalizeConfig());
+  return {
+    name: published.name,
+    external_id: published.external_id,
+    features: published.features
+      .slice(0, published.features.length - drop)
+      .map(({ name, external_id: externalId }) => ({ name, external_id: externalId })),
+  };
+}
+
+test('a device the user has not created yet is not reported as outdated', () => {
+  const gladys = createFakeGladys();
+  assert.deepEqual(findOutdatedDevices(gladys, [], normalizeConfig()), []);
+});
+
+test('a device carrying every published feature is not reported as outdated', () => {
+  const gladys = createFakeGladys();
+  const devices = [createdDevice(gladys)];
+  assert.deepEqual(findOutdatedDevices(gladys, devices, normalizeConfig()), []);
+});
+
+test('a device missing a published feature is reported, with the missing ids', () => {
+  const gladys = createFakeGladys();
+  const [published] = buildDiscoveredDevices(gladys, normalizeConfig());
+  const lastFeature = published.features[published.features.length - 1];
+
+  const outdated = findOutdatedDevices(
+    gladys,
+    [createdDevice(gladys, { drop: 1 })],
+    normalizeConfig(),
+  );
+
+  assert.equal(outdated.length, 1);
+  assert.equal(outdated[0].deviceExternalId, published.external_id);
+  assert.deepEqual(outdated[0].missingFeatures, [lastFeature.external_id]);
+});
+
+test('a device created under another external_id is left alone', () => {
+  // Another integration, or a device of ours the user renamed at the Docker
+  // level: not ours to judge.
+  const gladys = createFakeGladys();
+  const foreign = { name: 'Autre', external_id: 'ext:other:thing:1', features: [] };
+  assert.deepEqual(findOutdatedDevices(gladys, [foreign], normalizeConfig()), []);
+});
+
+test('a device whose features are missing from the payload is reported', () => {
+  // Defensive: the core always returns a features array, but a device with none
+  // is exactly the case where every state we publish would be lost.
+  const gladys = createFakeGladys();
+  const [published] = buildDiscoveredDevices(gladys, normalizeConfig());
+  const outdated = findOutdatedDevices(
+    gladys,
+    [{ name: published.name, external_id: published.external_id }],
+    normalizeConfig(),
+  );
+  assert.equal(outdated.length, 1);
+  assert.equal(outdated[0].missingFeatures.length, published.features.length);
 });

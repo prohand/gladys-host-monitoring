@@ -102,6 +102,24 @@ dans **Sonde de température CPU**.
 l'onglet Découverte : tant qu'il n'est pas créé, Gladys ignore silencieusement
 les états publiés.
 
+**L'appareil affiche « Pas de valeur récente ».** Ce badge apparaît quand aucun
+état n'a été enregistré depuis 48 heures — donc, en pratique, jamais. Utilisez
+l'action **Lire les métriques maintenant** : elle termine par « N état(s)
+publié(s) ». Si N vaut au moins 1, l'intégration publie bien, et le problème est
+l'appariement des fonctionnalités décrit juste en dessous.
+
+**L'appareil a été créé par une version plus ancienne.** Gladys ne met jamais à
+jour les fonctionnalités d'un appareil déjà créé : republier l'appareil ne
+rafraîchit que la fiche de l'écran Découverte. Un appareil créé avec d'anciens
+identifiants garde donc ces identifiants, et les états publiés pour les nouveaux
+sont jetés sans erreur visible (le serveur Gladys journalise `DeviceFeature
+"..." not found (or not added to Gladys), skipping state update.`).
+L'intégration détecte ce cas au démarrage et l'affiche dans l'écran de
+configuration. **Le seul remède est de supprimer l'appareil dans Gladys puis de
+le rajouter depuis l'écran Découverte.** C'est également la marche à suivre pour
+appliquer un changement de l'option **Conserver l'historique**, ou pour faire
+apparaître la température sur un appareil créé avant la détection de la sonde.
+
 **La température est absente.** C'est normal sur une VM. Utilisez l'action
 **Lister les sondes de température** pour confirmer que le noyau n'en expose
 aucune.
