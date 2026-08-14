@@ -81,8 +81,11 @@ export function createHostMonitor({
   clearIntervalFn = clearInterval,
 } = {}) {
   // Guard against overlapping runs: a slow read (an unresponsive NFS mount on
-  // the measured path) must not stack timers on top of each other.
-  let refreshInFlight = false;
+  // the measured path) must not stack timers on top of each other. Held as a
+  // promise rather than a boolean so a forced refresh can queue behind a slow
+  // read instead of being dropped the way a timer tick is.
+  /** @type {Promise<void>|null} */
+  let refreshInFlight = null;
 
   /**
    * Read every metric and publish the ones that passed the throttle.
@@ -139,6 +142,11 @@ export function createHostMonitor({
           state: value,
         })),
       );
+      // Only now are these values really published. Committing before the call
+      // would lose the batch whenever it fails (Gladys restarting, a network
+      // blip): the throttle would hold the metrics back until they cross the
+      // deadband again — up to a full heartbeat interval on a flat metric.
+      throttle.commit(toPublish);
     }
 
     logger.info(
@@ -148,6 +156,25 @@ export function createHostMonitor({
     );
 
     return { metrics, publishedCount: toPublish.length };
+  }
+
+  /**
+   * Run a refresh and expose it as the in-flight one until it settles.
+   * @param {object} gladys - The SDK instance.
+   * @param {object} config - Normalized configuration.
+   * @returns {Promise<{metrics: object, publishedCount: number}>} The refresh result.
+   */
+  function startRefresh(gladys, config) {
+    const running = refresh(gladys, config);
+    // The tracked promise swallows the failure: callers waiting for the slot to
+    // free up care that the read is over, not how it went. The real promise is
+    // returned untouched, so the caller still sees the error.
+    refreshInFlight = running
+      .catch(() => {})
+      .finally(() => {
+        refreshInFlight = null;
+      });
+    return running;
   }
 
   return {
@@ -230,17 +257,14 @@ export function createHostMonitor({
       logger.info(`Starting the refresh loop, every ${config.refresh_interval}s`);
 
       const run = async () => {
-        if (refreshInFlight) {
+        if (refreshInFlight !== null) {
           logger.warn('Previous refresh still running, skipping this tick');
           return;
         }
-        refreshInFlight = true;
         try {
-          await refresh(gladys, config);
+          await startRefresh(gladys, config);
         } catch (err) {
           logger.error('Refresh failed', err);
-        } finally {
-          refreshInFlight = false;
         }
       };
 
@@ -262,6 +286,30 @@ export function createHostMonitor({
      */
     resetThrottle() {
       throttle.reset();
+    },
+
+    /**
+     * Publish a full snapshot right now, whatever the throttle believes.
+     *
+     * This is what makes a freshly created device show values immediately. The
+     * refresh loop starts as soon as we are connected, so it publishes states
+     * for a device the user has not added yet; Gladys finds no feature for
+     * those external_ids and drops them, but the throttle has no way of knowing
+     * and records them as published. Without this reset, the device the user
+     * just added stays on "no recent value" until a metric crosses its deadband
+     * or the heartbeat fires — up to `max_interval_minutes` (one hour by
+     * default), and that is the best case: a flat metric like disk usage really
+     * does wait the full hour.
+     * @param {object} gladys - The SDK instance.
+     * @param {object} config - Normalized configuration.
+     * @returns {Promise<{metrics: object, publishedCount: number}>} What was read and published.
+     */
+    async refreshNow(gladys, config) {
+      // Unlike a timer tick, this refresh answers a user action: wait for a
+      // read already in progress rather than dropping it.
+      await refreshInFlight;
+      throttle.reset();
+      return startRefresh(gladys, config);
     },
 
     // Manifest actions: buttons rendered in the Configuration screen. Both are

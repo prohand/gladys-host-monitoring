@@ -100,7 +100,9 @@ dans **Sonde de température CPU**.
 
 **Aucune valeur ne remonte.** Vérifiez que l'appareil a bien été ajouté depuis
 l'onglet Découverte : tant qu'il n'est pas créé, Gladys ignore silencieusement
-les états publiés.
+les états publiés. Dès que vous l'ajoutez, l'intégration republie un instantané
+complet — les cinq métriques apparaissent donc en quelques secondes, sans
+attendre le prochain rafraîchissement ni le prochain point garanti.
 
 **L'appareil affiche « Pas de valeur récente ».** Ce badge apparaît quand aucun
 état n'a été enregistré depuis 48 heures — donc, en pratique, jamais. Utilisez

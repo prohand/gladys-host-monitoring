@@ -1,7 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHostMonitor, FEATURE } from '../src/devices/hostMonitor.js';
-import { buildDiscoveredDevices, findOutdatedDevices } from '../src/devices/index.js';
+import {
+  buildDiscoveredDevices,
+  findOutdatedDevices,
+  refreshDeviceNow,
+} from '../src/devices/index.js';
 import { createStateThrottle } from '../src/publish/throttle.js';
 import { normalizeConfig } from '../src/config.js';
 import { createFakeGladys } from './helpers/fakeGladys.js';
@@ -337,4 +341,73 @@ test('a device whose features are missing from the payload is reported', () => {
   );
   assert.equal(outdated.length, 1);
   assert.equal(outdated[0].missingFeatures.length, published.features.length);
+});
+
+// --- A device created after the refresh loop started -------------------------
+// The loop publishes from the moment we are connected, so it sends states for
+// feature external_ids that do not exist yet: Gladys drops them, but the
+// throttle records them as published. Without a reset when the user finally
+// creates the device, every metric looks "already sent and unchanged" and the
+// new device shows nothing until a deadband is crossed or the heartbeat fires.
+
+test('refreshNow republishes every metric, even when nothing moved', async () => {
+  const { monitor, gladys } = createFixture({ readings: [snapshot()] });
+  const config = normalizeConfig();
+
+  // The states published while the device did not exist yet: Gladys dropped
+  // these, but the throttle believes they landed.
+  await monitor.actions.test_metrics(gladys, { config });
+  gladys.published.length = 0;
+
+  // A plain refresh holds everything back — this is the bug being fixed.
+  await monitor.actions.test_metrics(gladys, { config });
+  assert.equal(gladys.published.length, 0, 'the throttle holds back the unchanged snapshot');
+
+  // The user creates the device: the full snapshot must go out immediately.
+  await monitor.refreshNow(gladys, config);
+  assert.deepEqual(publishedByFeature(gladys, monitor), {
+    [FEATURE.CPU]: 12.3,
+    [FEATURE.MEMORY]: 48.6,
+    [FEATURE.DISK]: 61.2,
+    [FEATURE.DISK_FREE]: 42.5,
+    [FEATURE.TEMPERATURE]: 47.8,
+  });
+});
+
+test('the device Gladys reports as created is routed to its blueprint', async () => {
+  // Goes through the real registry, so it reads the machine running the tests:
+  // which metrics are available depends on the host (no /data, no thermal zone
+  // in CI), hence the assertion on "something was published", not on the five.
+  const gladys = createFakeGladys();
+  const [device] = buildDiscoveredDevices(gladys, normalizeConfig());
+  assert.equal(await refreshDeviceNow(gladys, device, normalizeConfig()), true);
+  assert.ok(gladys.published.length > 0, 'the freshly created device gets a snapshot');
+});
+
+test('a device belonging to another integration is left alone', async () => {
+  const gladys = createFakeGladys();
+  const handled = await refreshDeviceNow(
+    gladys,
+    { external_id: 'ext:other:thing:1' },
+    normalizeConfig(),
+  );
+  assert.equal(handled, false);
+  assert.equal(gladys.published.length, 0);
+});
+
+test('the throttle keeps a batch Gladys refused, so the next refresh retries it', async () => {
+  const { monitor, gladys } = createFixture({ readings: [snapshot()] });
+  const config = normalizeConfig();
+  const accepted = gladys.publishStates;
+
+  gladys.publishStates = async () => {
+    throw new Error('Gladys is restarting');
+  };
+  await assert.rejects(() => monitor.actions.test_metrics(gladys, { config }));
+  assert.equal(gladys.published.length, 0, 'nothing reached Gladys');
+
+  // Same unchanged values: because nothing was committed, they are still due.
+  gladys.publishStates = accepted;
+  await monitor.actions.test_metrics(gladys, { config });
+  assert.equal(gladys.published.length, 5, 'the refused snapshot is published again');
 });

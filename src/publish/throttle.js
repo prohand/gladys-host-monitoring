@@ -18,6 +18,12 @@
 //
 // Both rules are per feature, and the thresholds come from the configuration:
 // a user who wants every sample can set the deadband to 0.
+//
+// Selecting and remembering are two separate steps — `filter()` then
+// `commit()` — because "we published this value" is only true once Gladys has
+// accepted the batch. Remembering a reading the POST /state call then failed to
+// deliver would hold the metric back until it crosses the deadband again, which
+// on a flat metric means up to a full heartbeat interval of missing data.
 // -----------------------------------------------------------------------------
 
 /**
@@ -25,7 +31,7 @@
  * and when — nothing else, so it stays cheap and restart-safe (a restart simply
  * publishes a fresh point for every metric).
  * @param {{now?: () => number}} options - Injectable clock, for tests.
- * @returns {{filter: Function, reset: Function}} The throttle.
+ * @returns {{filter: Function, commit: Function, reset: Function}} The throttle.
  */
 export function createStateThrottle({ now = Date.now } = {}) {
   /** @type {Map<string, {value: number, publishedAt: number}>} */
@@ -34,6 +40,9 @@ export function createStateThrottle({ now = Date.now } = {}) {
   return {
     /**
      * Keep only the readings worth writing to the database.
+     *
+     * Pure: it selects, it does not remember. Call `commit()` with the result
+     * once Gladys has accepted the batch.
      *
      * Readings whose value is null/undefined/NaN are dropped silently: an
      * unavailable metric (no thermal sensor, unmounted disk) must not publish
@@ -57,12 +66,26 @@ export function createStateThrottle({ now = Date.now } = {}) {
         const heartbeatDue = !isFirstValue && timestamp - previous.publishedAt >= maxIntervalMs;
 
         if (isFirstValue || movedEnough || heartbeatDue) {
-          lastPublished.set(reading.externalId, { value: reading.value, publishedAt: timestamp });
           kept.push(reading);
         }
       }
 
       return kept;
+    },
+
+    /**
+     * Record readings as published: they become the reference the deadband and
+     * the heartbeat are measured against. Call it only after Gladys accepted
+     * them — a batch that failed to reach the server has not been published,
+     * and must stay eligible for the next refresh.
+     * @param {{externalId: string, value: number}[]} readings - Readings Gladys accepted.
+     * @returns {void}
+     */
+    commit(readings) {
+      const timestamp = now();
+      for (const reading of readings) {
+        lastPublished.set(reading.externalId, { value: reading.value, publishedAt: timestamp });
+      }
     },
 
     /**
