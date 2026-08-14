@@ -94,7 +94,10 @@ in use with a `>`. Copy the path you want into **CPU temperature sensor**.
 ## Troubleshooting
 
 **No value shows up.** Check that the device was actually added from the
-Discovery tab: until it is created, Gladys silently ignores published states.
+Discovery tab: until it is created, Gladys silently ignores published states. As
+soon as you add it, the integration publishes a full snapshot again — so the
+five metrics appear within seconds, without waiting for the next refresh or the
+next guaranteed point.
 
 **The device shows "No recent value".** That badge appears when no state has
 been recorded for 48 hours — so, in practice, never. Use the **Read the metrics

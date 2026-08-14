@@ -12,6 +12,7 @@
 //   - buildDevice(gladys, config): the discovery payload sent to Gladys
 //   - startPush(gladys, config)   (optional): start a refresh loop / a
 //     subscription, and return the function that stops it
+//   - refreshNow(gladys, config)  (optional): publish a full snapshot now
 //   - resetThrottle()             (optional): forget the published values
 //   - actions                     (optional): manifest action handlers, keyed
 //     by the action `key` declared in gladys-assistant-integration.json
@@ -90,6 +91,27 @@ export function findOutdatedDevices(gladys, createdDevices, config) {
   }
 
   return outdated;
+}
+
+/**
+ * Publish a full snapshot for the blueprint owning a device, immediately.
+ *
+ * Called when Gladys tells us the user created (or updated) one of our devices:
+ * that is the moment the feature external_ids we have been publishing into the
+ * void finally exist, and the moment the device must stop showing "no recent
+ * value".
+ * @param {object} gladys - The SDK instance.
+ * @param {{external_id: string}} device - The device Gladys just created or updated.
+ * @param {object} config - Normalized configuration.
+ * @returns {Promise<boolean>} True when a blueprint took the device.
+ */
+export async function refreshDeviceNow(gladys, device, config) {
+  const blueprint = findBlueprintByDevice(gladys, device);
+  if (blueprint === undefined || typeof blueprint.refreshNow !== 'function') {
+    return false;
+  }
+  await blueprint.refreshNow(gladys, config);
+  return true;
 }
 
 /**

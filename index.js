@@ -23,6 +23,7 @@ import {
   buildDiscoveredDevices,
   findBlueprintByDevice,
   findOutdatedDevices,
+  refreshDeviceNow,
   resetThrottles,
 } from './src/devices/index.js';
 
@@ -53,6 +54,29 @@ gladys.onPoll(async (device) => {
     return;
   }
   await blueprint.onPoll(gladys, config);
+});
+
+// --- The user added (or edited) one of our devices ---------------------------
+// This is what makes a brand new device show its values straight away.
+//
+// The refresh loop runs from the moment we are connected, so it has been
+// publishing states for feature external_ids that did not exist yet: Gladys
+// dropped them (it matches states to features by external_id, and there was no
+// feature to match), while our throttle recorded them as published. From its
+// point of view every metric is now "already sent and unchanged", so it holds
+// them all back — and the device the user just created sits on "no recent
+// value" until something crosses its deadband or the heartbeat fires, up to
+// `max_interval_minutes` later. Forcing a full snapshot here closes that gap.
+gladys.onDeviceCreated(async (device) => {
+  logger.info(`onDeviceCreated (${device.external_id}) -> publishing a full snapshot`);
+  await refreshDeviceNow(gladys, device, config);
+});
+
+// Same treatment on update: the user may have edited the device features, so
+// what we believe Gladys holds is stale again.
+gladys.onDeviceUpdated(async (device) => {
+  logger.info(`onDeviceUpdated (${device.external_id}) -> publishing a full snapshot`);
+  await refreshDeviceNow(gladys, device, config);
 });
 
 // --- Manifest actions: buttons in the Configuration screen -------------------
