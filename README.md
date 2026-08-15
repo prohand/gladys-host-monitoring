@@ -149,6 +149,16 @@ npx github:GladysAssistant/integration-store .
 
 ## Publishing
 
+The manifest declares `categories: ["services"]` — the catalog shelf the
+integration sits on, since Gladys 4.86 browses the store by category and an
+integration declaring none is only reachable through "All" and search. Host
+supervision has no shelf of its own: "Services" is the generic one, where
+"Network & presence", "Weather & environment" or "Energy" would each promise
+something this integration does not do. Declaring the field forces
+`gladys_version` to start at **4.86.0 or later** — older cores validate
+manifests against a strict field allowlist and reject any unknown top-level
+field — a coupling `test/manifest.test.js` pins.
+
 1. Make the repository public and add the GitHub topic
    `gladys-assistant-integration`.
 2. Replace `cover.png` (800×534 px, ≤150 KB) — the bundled one is the template's

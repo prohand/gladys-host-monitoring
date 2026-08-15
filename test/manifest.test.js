@@ -114,3 +114,23 @@ test('the manifest stays within the store limits', () => {
   assert.match(manifest.docker_image, /:[\w.-]+$/, 'the image reference needs an explicit tag');
   assert.match(manifest.cover_image, /^https:\/\//);
 });
+
+test('declaring catalog categories requires Gladys >= 4.86.0', () => {
+  // The controlled vocabulary is the store validator's job (an unknown key is
+  // dropped with a warning there, not rejected). What no external check can
+  // catch is the coupling: cores older than 4.86 validate manifests against a
+  // strict field allowlist and reject *any* unknown top-level field, so
+  // declaring `categories` while still claiming compatibility with an older
+  // Gladys turns a catalog entry into a cryptic install failure.
+  assert.ok(
+    manifest.categories.length >= 1 && manifest.categories.length <= 3,
+    'the store accepts 1 to 3 categories',
+  );
+  const minVersion = manifest.gladys_version.match(/>=\s*(\d+)\.(\d+)\.\d+/);
+  assert.ok(minVersion, 'gladys_version must declare a minimum version');
+  const [, major, minor] = minVersion.map(Number);
+  assert.ok(
+    major > 4 || (major === 4 && minor >= 86),
+    `categories requires gladys_version >= 4.86.0, got "${manifest.gladys_version}"`,
+  );
+});

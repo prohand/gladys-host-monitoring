@@ -16,7 +16,10 @@ service, no data leaving your home.
 
 ## Installation
 
-1. Install the integration from the Gladys catalog.
+Requires **Gladys 4.86 or later**. On an older version the integration simply
+does not appear in the catalog: update Gladys first.
+
+1. Install the integration from the Gladys catalog (category **Services**).
 2. Open the **Configuration** tab and save (the defaults are fine for the vast
    majority of setups).
 3. Go to the **Discovery** tab: the "Machine hôte" device shows up, click

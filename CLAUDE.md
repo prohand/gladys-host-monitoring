@@ -111,6 +111,10 @@ blueprint's `actions` (and vice versa), every `DEFAULT_CONFIG` key is declared i
 the same `default`, and `normalizeConfig` clamps to the manifest's `min`/`max`. Change a config key or
 an action in one place and that test tells you about the other.
 
+The same test pins one store rule: declaring `categories` (the catalog shelves, `["services"]` here)
+forces `gladys_version` to start at 4.86.0 or later, because older cores reject any manifest field
+they do not know — the field and the minimum version move together or the install breaks.
+
 Never hand-edit `version` or `docker_image` — the **Release** workflow (Actions → Release → patch /
 minor / major) bumps `package.json`, `package-lock.json` and both manifest fields together, tags
 `vX.Y.Z` and triggers the multi-arch build.
