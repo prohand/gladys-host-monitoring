@@ -6,8 +6,8 @@
     "en": "Reports the CPU, memory, disk usage and CPU temperature of the machine running Gladys.",
     "fr": "Remonte l'usage CPU, la mémoire, l'espace disque et la température CPU de la machine hôte."
   },
-  "version": "1.0.1",
-  "docker_image": "ghcr.io/prohand/gladys-host-monitoring:1.0.1",
+  "version": "1.0.2",
+  "docker_image": "ghcr.io/prohand/gladys-host-monitoring:1.0.2",
   "gladys_version": ">=4.86.0",
   "cover_image": "https://raw.githubusercontent.com/prohand/gladys-host-monitoring/main/cover.png",
   "categories": ["services"],
