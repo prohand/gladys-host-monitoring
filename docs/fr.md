@@ -16,7 +16,12 @@ service cloud, aucune donnée qui sort de chez vous.
 
 ## Installation
 
-1. Installez l'intégration depuis le catalogue Gladys.
+Nécessite **Gladys 4.86 ou plus récent**. Sur une version antérieure,
+l'intégration n'apparaît tout simplement pas dans le catalogue : mettez d'abord
+Gladys à jour.
+
+1. Installez l'intégration depuis le catalogue Gladys (catégorie
+   **Services**).
 2. Ouvrez l'onglet **Configuration** et enregistrez (les valeurs par défaut
    conviennent dans la grande majorité des cas).
 3. Allez dans l'onglet **Découverte** : l'appareil « Machine hôte » apparaît,
