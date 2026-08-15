@@ -71,6 +71,14 @@ jobs:
             gladys-assistant-integration.json > "$tmp"
           mv "$tmp" gladys-assistant-integration.json
 
+          # jq re-prints the WHOLE file with its own style (every array
+          # expanded, one item per line), which is not what Prettier produces —
+          # so a release commit left as-is fails the `format:check` CI gate on
+          # a file no human touched. Reformat with the pinned Prettier, the
+          # very tool that gate runs.
+          npm ci --no-audit --no-fund
+          npx prettier --write gladys-assistant-integration.json
+
           echo "version=${new_version}" >> "$GITHUB_OUTPUT"
 
       # Note: if the branch you release from is protected against direct pushes,

@@ -161,12 +161,15 @@ field — a coupling `test/manifest.test.js` pins.
 
 1. Make the repository public and add the GitHub topic
    `gladys-assistant-integration`.
-2. Replace `cover.png` (800×534 px, ≤150 KB) — the bundled one is the template's
-   plain gradient placeholder.
+2. Keep `cover.png` at **exactly 800×534 px and ≤150 KB**: any other size and
+   the store silently falls back to its own placeholder cover, with a warning
+   in `rejected.json` as the only trace.
 3. **Actions → Release → Run workflow**, pick `patch` / `minor` / `major`. The
    workflow bumps the version everywhere (`package.json` + manifest
-   `version`/`docker_image`), pushes the `vX.Y.Z` tag and builds the
-   `linux/amd64` + `linux/arm64` image to `ghcr.io`.
+   `version`/`docker_image`), reformats the manifest with Prettier (`jq` rewrites
+   it in its own style, which would fail the `format:check` CI gate on the
+   release commit), pushes the `vX.Y.Z` tag and builds the `linux/amd64` +
+   `linux/arm64` image to `ghcr.io`.
 4. The decentralized indexer picks up the new manifest version and Gladys offers
    a one-click install / update.
 
