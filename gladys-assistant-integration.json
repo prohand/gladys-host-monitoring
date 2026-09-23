@@ -8,7 +8,7 @@
   },
   "version": "1.0.2",
   "docker_image": "ghcr.io/prohand/gladys-host-monitoring:1.0.2",
-  "gladys_version": ">=4.86.0",
+  "gladys_version": ">=5.1.0",
   "cover_image": "https://raw.githubusercontent.com/prohand/gladys-host-monitoring/main/cover.png",
   "categories": ["services"],
   "transports": ["local"],
@@ -177,6 +177,82 @@
       },
       "required": false,
       "default": true
+    },
+    {
+      "key": "alerts",
+      "type": "section",
+      "label": {
+        "en": "Alerts for scenes",
+        "fr": "Alertes pour les scènes"
+      },
+      "description": {
+        "en": "When a metric reaches its threshold, the integration fires the \"Host metric alert\" scene trigger once, and once more when the metric comes back down. Use it to be notified of a full disk or an overheating CPU. Set a threshold to 0 to disable that alert.",
+        "fr": "Quand une mesure atteint son seuil, l'intégration déclenche une fois le déclencheur de scène « Alerte sur une mesure de l'hôte », puis une fois encore quand la mesure redescend. Idéal pour être prévenu d'un disque plein ou d'un CPU qui chauffe. Mettez un seuil à 0 pour désactiver cette alerte."
+      }
+    },
+    {
+      "key": "alert_cpu_percent",
+      "type": "number",
+      "label": {
+        "en": "CPU alert threshold (%)",
+        "fr": "Seuil d'alerte CPU (%)"
+      },
+      "description": {
+        "en": "The CPU usage is averaged over the refresh interval, so short spikes do not count. 0 disables the alert.",
+        "fr": "L'usage CPU est une moyenne sur l'intervalle de rafraîchissement : les pics courts ne comptent pas. 0 désactive l'alerte."
+      },
+      "required": false,
+      "default": 90,
+      "min": 0,
+      "max": 100
+    },
+    {
+      "key": "alert_memory_percent",
+      "type": "number",
+      "label": {
+        "en": "Memory alert threshold (%)",
+        "fr": "Seuil d'alerte mémoire (%)"
+      },
+      "description": {
+        "en": "0 disables the alert.",
+        "fr": "0 désactive l'alerte."
+      },
+      "required": false,
+      "default": 90,
+      "min": 0,
+      "max": 100
+    },
+    {
+      "key": "alert_disk_percent",
+      "type": "number",
+      "label": {
+        "en": "Disk alert threshold (%)",
+        "fr": "Seuil d'alerte disque (%)"
+      },
+      "description": {
+        "en": "0 disables the alert.",
+        "fr": "0 désactive l'alerte."
+      },
+      "required": false,
+      "default": 90,
+      "min": 0,
+      "max": 100
+    },
+    {
+      "key": "alert_temperature",
+      "type": "number",
+      "label": {
+        "en": "CPU temperature alert threshold (°C)",
+        "fr": "Seuil d'alerte température CPU (°C)"
+      },
+      "description": {
+        "en": "0 disables the alert. Ignored when no temperature sensor is found.",
+        "fr": "0 désactive l'alerte. Ignoré si aucune sonde de température n'est trouvée."
+      },
+      "required": false,
+      "default": 80,
+      "min": 0,
+      "max": 120
     }
   ],
   "actions": [
@@ -203,6 +279,299 @@
         "fr": "Affiche les sondes de température sysfs visibles depuis le conteneur, pour renseigner le chemin à la main."
       },
       "timeout_seconds": 30
+    }
+  ],
+  "scene_triggers": [
+    {
+      "key": "threshold_alert",
+      "label": {
+        "en": "Host metric alert",
+        "fr": "Alerte sur une mesure de l'hôte"
+      },
+      "description": {
+        "en": "A metric of the host reached its alert threshold, or came back down.",
+        "fr": "Une mesure de l'hôte a atteint son seuil d'alerte, ou est redescendue."
+      },
+      "fields": [
+        {
+          "key": "metric",
+          "type": "multi_select",
+          "label": {
+            "en": "Metrics",
+            "fr": "Mesures"
+          },
+          "description": {
+            "en": "Leave empty for any metric. The thresholds are set in the integration configuration.",
+            "fr": "Laissez vide pour toutes les mesures. Les seuils se règlent dans la configuration de l'intégration."
+          },
+          "options": [
+            {
+              "value": "cpu",
+              "label": {
+                "en": "CPU usage",
+                "fr": "Utilisation CPU"
+              }
+            },
+            {
+              "value": "memory",
+              "label": {
+                "en": "Memory usage",
+                "fr": "Utilisation mémoire"
+              }
+            },
+            {
+              "value": "disk",
+              "label": {
+                "en": "Disk usage",
+                "fr": "Utilisation disque"
+              }
+            },
+            {
+              "value": "temperature",
+              "label": {
+                "en": "CPU temperature",
+                "fr": "Température CPU"
+              }
+            }
+          ]
+        },
+        {
+          "key": "status",
+          "type": "select",
+          "label": {
+            "en": "Event",
+            "fr": "Événement"
+          },
+          "description": {
+            "en": "Leave empty for both.",
+            "fr": "Laissez vide pour les deux."
+          },
+          "options": [
+            {
+              "value": "raised",
+              "label": {
+                "en": "Alert raised",
+                "fr": "Alerte déclenchée"
+              }
+            },
+            {
+              "value": "cleared",
+              "label": {
+                "en": "Back to normal",
+                "fr": "Retour à la normale"
+              }
+            }
+          ]
+        }
+      ],
+      "variables": [
+        {
+          "key": "metric",
+          "type": "string",
+          "label": {
+            "en": "Metric key (cpu, memory, disk, temperature)",
+            "fr": "Clé de la mesure (cpu, memory, disk, temperature)"
+          }
+        },
+        {
+          "key": "metric_label",
+          "type": "string",
+          "label": {
+            "en": "Metric name",
+            "fr": "Nom de la mesure"
+          }
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "label": {
+            "en": "Event (raised, cleared)",
+            "fr": "Événement (raised, cleared)"
+          }
+        },
+        {
+          "key": "value",
+          "type": "number",
+          "label": {
+            "en": "Measured value",
+            "fr": "Valeur mesurée"
+          }
+        },
+        {
+          "key": "threshold",
+          "type": "number",
+          "label": {
+            "en": "Alert threshold",
+            "fr": "Seuil d'alerte"
+          }
+        },
+        {
+          "key": "unit",
+          "type": "string",
+          "label": {
+            "en": "Unit (% or °C)",
+            "fr": "Unité (% ou °C)"
+          }
+        },
+        {
+          "key": "device_name",
+          "type": "string",
+          "label": {
+            "en": "Device name",
+            "fr": "Nom de l'appareil"
+          }
+        },
+        {
+          "key": "message",
+          "type": "string",
+          "label": {
+            "en": "Ready-made message (French)",
+            "fr": "Message prêt à envoyer"
+          }
+        }
+      ]
+    }
+  ],
+  "scene_actions": [
+    {
+      "key": "read_metrics",
+      "label": {
+        "en": "Read the host metrics",
+        "fr": "Lire les mesures de l'hôte"
+      },
+      "description": {
+        "en": "Reads every metric now and makes the values available to the next actions of the scene.",
+        "fr": "Lit toutes les mesures maintenant et rend les valeurs disponibles pour les actions suivantes de la scène."
+      },
+      "timeout_seconds": 30,
+      "outputs": [
+        {
+          "key": "cpu_percent",
+          "type": "number",
+          "label": {
+            "en": "CPU usage (%)",
+            "fr": "Utilisation CPU (%)"
+          }
+        },
+        {
+          "key": "memory_percent",
+          "type": "number",
+          "label": {
+            "en": "Memory usage (%)",
+            "fr": "Utilisation mémoire (%)"
+          }
+        },
+        {
+          "key": "disk_percent",
+          "type": "number",
+          "label": {
+            "en": "Disk usage (%)",
+            "fr": "Utilisation disque (%)"
+          }
+        },
+        {
+          "key": "disk_free_gib",
+          "type": "number",
+          "label": {
+            "en": "Free disk space (GiB)",
+            "fr": "Espace disque libre (Gio)"
+          }
+        },
+        {
+          "key": "temperature",
+          "type": "number",
+          "label": {
+            "en": "CPU temperature (°C)",
+            "fr": "Température CPU (°C)"
+          }
+        },
+        {
+          "key": "summary",
+          "type": "string",
+          "label": {
+            "en": "Summary (French)",
+            "fr": "Résumé"
+          }
+        }
+      ]
+    }
+  ],
+  "widgets": [
+    {
+      "key": "host_health",
+      "label": {
+        "en": "Host health",
+        "fr": "Santé de l'hôte"
+      },
+      "description": {
+        "en": "CPU, memory and disk gauges, temperature, usage history and alerts.",
+        "fr": "Jauges CPU, mémoire et disque, température, historique et alertes."
+      },
+      "icon": "cpu",
+      "settings": [
+        {
+          "key": "chart_interval",
+          "type": "select",
+          "label": {
+            "en": "Chart period",
+            "fr": "Période du graphique"
+          },
+          "required": false,
+          "default": "last-day",
+          "options": [
+            {
+              "value": "none",
+              "label": {
+                "en": "No chart",
+                "fr": "Pas de graphique"
+              }
+            },
+            {
+              "value": "last-hour",
+              "label": {
+                "en": "Last hour",
+                "fr": "Dernière heure"
+              }
+            },
+            {
+              "value": "last-twelve-hours",
+              "label": {
+                "en": "Last 12 hours",
+                "fr": "12 dernières heures"
+              }
+            },
+            {
+              "value": "last-day",
+              "label": {
+                "en": "Last 24 hours",
+                "fr": "24 dernières heures"
+              }
+            },
+            {
+              "value": "last-three-days",
+              "label": {
+                "en": "Last 3 days",
+                "fr": "3 derniers jours"
+              }
+            },
+            {
+              "value": "last-week",
+              "label": {
+                "en": "Last week",
+                "fr": "Dernière semaine"
+              }
+            },
+            {
+              "value": "last-month",
+              "label": {
+                "en": "Last month",
+                "fr": "Dernier mois"
+              }
+            }
+          ]
+        }
+      ],
+      "action_timeout_seconds": 30
     }
   ]
 }

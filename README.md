@@ -70,6 +70,44 @@ sample can set the variation to 0; a user who wants no history at all can turn
 
 With the defaults, a quiet machine writes a few dozen rows a day.
 
+## Widgets and scenes (Gladys 5.1)
+
+Gladys 5.1 lets an integration extend the dashboard and the scene editor through
+manifest declarations. All three capabilities are fed by the same refresh loop,
+so they add no reading and no history row of their own.
+
+- **Widget `host_health`** — CPU / memory / disk gauges, temperature and free
+  space tiles, a usage chart, the alert statuses and a **Read now** button.
+  Once the device is created, every tile and the chart are bound to its
+  features (`device_feature`): the core renders them live, in the user's units,
+  from the states we already publish. Before that, the tiles show the last
+  snapshot inline. The content is rebuilt from memory (`lastMetrics`), never by
+  an extra read — a second `/proc/stat` read would shorten the CPU averaging
+  window of the loop — and `requestWidgetRefresh` nudges the core after each
+  refresh. One setting: the chart interval (`none` hides it).
+- **Scene trigger `threshold_alert`** — fired once when a metric reaches its
+  alert threshold (`alert_*` config keys, 0 disables one), once when it comes
+  back down. [`src/publish/alerts.js`](./src/publish/alerts.js) follows the SDK
+  doctrine "one event per transition": a hysteresis (5 points, 3 °C) keeps a
+  value hovering around the threshold from firing at every refresh, and the
+  same `evaluate()` (pure) / `commit()` split as the throttle means an event
+  Gladys refused is fired again at the next refresh instead of being lost.
+  Alerts are evaluated on the raw readings, before the throttle: a held-back
+  state still raises its alert. The event carries a ready-made French
+  `message` so the usual "notify me" scene needs no template.
+- **Scene action `read_metrics`** — reads now and returns the metrics as
+  outputs (`null` when unavailable, never a fake 0). It goes through the
+  throttle: a scene running every minute must not write a row per metric each
+  time.
+
+Declaring any of them forces `gladys_version` to start at **5.1.0**, the first
+core accepting these manifest fields — pinned by `test/manifest.test.js`, which
+also checks that every declared key has a handler (and the reverse), that the
+event data only carries declared keys, and that `read_metrics` resolves exactly
+its declared outputs. The widget contents are checked in the tests with the
+SDK's own `validateWidgetContent`; run the integration with
+`DEBUG=gladys-integration-sdk` to get the same checks live.
+
 ## Project structure
 
 ```
@@ -78,14 +116,17 @@ With the defaults, a quiet machine writes a few dozen rows a day.
 ├─ src/
 │  ├─ devices/
 │  │  ├─ index.js                    #   device registry
-│  │  └─ hostMonitor.js              #   the host device: features, refresh loop, actions
+│  │  └─ hostMonitor.js              #   the host device: features, refresh loop, actions,
+│  │                                 #   widget, scene trigger and scene action
 │  ├─ metrics/
 │  │  ├─ index.js                    #   collector: one call, one snapshot
 │  │  ├─ cpu.js                      #   /proc/stat, delta between two snapshots
 │  │  ├─ memory.js                   #   /proc/meminfo, MemAvailable based
 │  │  ├─ disk.js                     #   statfs(), df-compatible percentage
 │  │  └─ temperature.js              #   sysfs sensor detection + read
-│  ├─ publish/throttle.js            # deadband + heartbeat: what reaches the database
+│  ├─ publish/
+│  │  ├─ throttle.js                 #   deadband + heartbeat: what reaches the database
+│  │  └─ alerts.js                   #   threshold alerts: one scene event per transition
 │  └─ config.js                      # config defaults, normalization and clamping
 ├─ docs/{en,fr}.md                   # user documentation (re-hosted by Gladys)
 ├─ gladys-assistant-integration.json # manifest (name, config schema, image…)
@@ -109,6 +150,10 @@ is tested without a Linux host, a Gladys server or a real clock.
 | `min_variation_temperature` | `1`            | Same, in °C                                        |
 | `max_interval_minutes`      | `60`           | Heartbeat: publish anyway after this long          |
 | `keep_history`              | `true`         | Applied when the device is created                 |
+| `alert_cpu_percent`         | `90`           | `threshold_alert` threshold, 0 disables it         |
+| `alert_memory_percent`      | `90`           | Same, memory                                       |
+| `alert_disk_percent`        | `90`           | Same, disk                                         |
+| `alert_temperature`         | `80`           | Same, CPU temperature in °C                        |
 
 Two buttons are available in the Configuration screen: **Read the metrics now**
 (immediate read, result shown under the button) and **List temperature sensors**

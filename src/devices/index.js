@@ -16,6 +16,12 @@
 //   - resetThrottle()             (optional): forget the published values
 //   - actions                     (optional): manifest action handlers, keyed
 //     by the action `key` declared in gladys-assistant-integration.json
+//   - sceneTriggers               (optional): keys of the manifest
+//     `scene_triggers` the blueprint fires through publishSceneEvent
+//   - sceneActions                (optional): manifest `scene_actions` handlers,
+//     keyed by action key, resolving the declared `outputs`
+//   - widgets                     (optional): manifest `widgets` handlers, keyed
+//     by widget key: { get(gladys, ctx), action?(gladys, key, params, ctx) }
 // -----------------------------------------------------------------------------
 
 import { hostMonitor } from './hostMonitor.js';

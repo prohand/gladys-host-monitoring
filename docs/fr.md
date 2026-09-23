@@ -16,7 +16,7 @@ service cloud, aucune donnée qui sort de chez vous.
 
 ## Installation
 
-Nécessite **Gladys 4.86 ou plus récent**. Sur une version antérieure,
+Nécessite **Gladys 5.1 ou plus récent**. Sur une version antérieure,
 l'intégration n'apparaît tout simplement pas dans le catalogue : mettez d'abord
 Gladys à jour.
 
@@ -100,6 +100,79 @@ dans **Sonde de température CPU**.
   résultat sous le bouton, sans attendre le prochain rafraîchissement. C'est le
   test à faire en premier si une valeur vous semble fausse.
 - **Lister les sondes de température** — voir ci-dessus.
+
+## Widget du tableau de bord
+
+Ajoutez la boîte **Santé de l'hôte** à un tableau de bord (liste des boîtes,
+section des intégrations). Elle affiche :
+
+- trois jauges : CPU, mémoire, disque ;
+- la température du CPU (si une sonde existe) et l'espace disque libre ;
+- un graphique de l'historique CPU / mémoire / disque ;
+- l'état de chaque alerte (voir plus bas) ;
+- un bouton **Lire maintenant**.
+
+Le seul réglage de la boîte est la **période du graphique** (dernière heure,
+24 heures, semaine, mois… ou pas de graphique). Le graphique n'apparaît que si
+l'appareil a été ajouté et qu'il conserve son historique.
+
+Tant que l'appareil n'est pas ajouté depuis l'écran Découverte, la boîte montre
+quand même la dernière mesure. Une fois l'appareil ajouté, les valeurs se
+mettent à jour en direct.
+
+## Scènes
+
+### Déclencheur « Alerte sur une mesure de l'hôte »
+
+L'intégration surveille quatre seuils, réglables dans l'écran de configuration
+(section **Alertes pour les scènes**) :
+
+| Seuil           | Par défaut |
+| --------------- | ---------- |
+| CPU             | 90 %       |
+| Mémoire         | 90 %       |
+| Disque          | 90 %       |
+| Température CPU | 80 °C      |
+
+Mettez un seuil à **0** pour désactiver cette alerte.
+
+Quand une mesure **atteint** son seuil, le déclencheur part **une seule fois**
+(« Alerte déclenchée »). Il repart une fois quand la mesure **redescend**
+(« Retour à la normale ») : 5 points sous le seuil pour les pourcentages, 3 °C
+pour la température. Cette marge évite qu'un disque qui oscille autour de 90 %
+lance vos scènes à chaque lecture.
+
+Dans l'éditeur de scène, vous pouvez filtrer sur les **mesures** (laissez vide
+pour toutes) et sur l'**événement** (déclenchée, retour à la normale, ou les
+deux). Les variables suivantes sont disponibles pour les actions de la scène :
+`metric`, `metric_label`, `status`, `value`, `threshold`, `unit`, `device_name`
+et `message` — un message tout prêt, par exemple
+« Machine hôte : Utilisation disque à 92 % (seuil 90 %) ».
+
+Exemple : « quand le disque atteint son seuil → m'envoyer un message avec
+`message` ».
+
+À savoir :
+
+- l'alerte est comparée à **chaque lecture**, même quand la valeur n'est pas
+  écrite dans l'historique ;
+- l'usage CPU est une **moyenne sur l'intervalle de rafraîchissement** : un pic
+  de quelques secondes ne déclenche rien ;
+- après un redémarrage de l'intégration, une alerte encore en cours est
+  **déclenchée à nouveau** à la première lecture.
+
+### Action « Lire les mesures de l'hôte »
+
+Cette action lit toutes les mesures au moment où la scène l'atteint, et les
+rend disponibles aux actions suivantes : `cpu_percent`, `memory_percent`,
+`disk_percent`, `disk_free_gib`, `temperature` et `summary` (un résumé en une
+ligne). Une mesure indisponible vaut vide, jamais 0.
+
+Exemple : « tous les lundis à 9 h → lire les mesures de l'hôte → m'envoyer
+`summary` ».
+
+Les valeurs lues passent par les mêmes garde-fous que le rafraîchissement
+normal : une scène qui tourne souvent ne remplit pas la base.
 
 ## Dépannage
 
