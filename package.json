@@ -1,6 +1,6 @@
 {
   "name": "gladys-host-monitoring",
-  "version": "1.0.2",
+  "version": "2.0.0",
   "private": true,
   "description": "Gladys external integration reporting the CPU, memory, disk and CPU temperature of the host machine.",
   "type": "module",
