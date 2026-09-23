@@ -13,6 +13,16 @@
 // metrics. So the device declares no poll frequency, starts its own timer
 // through `startPush` (default: every 5 minutes) and filters what it publishes
 // through the state throttle. See src/publish/throttle.js.
+//
+// Since Gladys 5.1 the device also carries three capabilities declared in the
+// manifest, all fed by the same refresh:
+//   - a scene TRIGGER (`threshold_alert`), fired once when a metric reaches its
+//     alert threshold and once when it comes back down (src/publish/alerts.js);
+//   - a scene ACTION (`read_metrics`), returning the current readings to the
+//     scene as outputs;
+//   - a dashboard WIDGET (`host_health`), whose tiles and chart are bound to the
+//     device features once the device exists, so they follow the published
+//     states live without us pushing anything.
 // -----------------------------------------------------------------------------
 
 import {
@@ -20,9 +30,11 @@ import {
   DEVICE_FEATURE_CATEGORIES,
   DEVICE_FEATURE_TYPES,
   DEVICE_FEATURE_UNITS,
+  WIDGET_COLORS,
 } from '@gladysassistant/integration-sdk';
 import { createMetricsCollector } from '../metrics/index.js';
 import { createStateThrottle } from '../publish/throttle.js';
+import { createAlertTracker, ALERT_STATUS } from '../publish/alerts.js';
 import { listTemperatureSensors, resolveTemperatureSensor } from '../metrics/temperature.js';
 import { BYTES_PER_GIB } from '../metrics/disk.js';
 
@@ -44,6 +56,75 @@ export const FEATURE = {
   DISK_FREE: 'disk-free',
   TEMPERATURE: 'cpu-temperature',
 };
+
+// Keys of the manifest capabilities. A published key is never renamed: scenes
+// and dashboards store it, a renamed key is a removed one for every user.
+export const SCENE_TRIGGER = {
+  THRESHOLD_ALERT: 'threshold_alert',
+};
+export const WIDGET = {
+  HOST_HEALTH: 'host_health',
+};
+// Keys of the widget buttons (the `action.key` of a button component).
+export const WIDGET_ACTION = {
+  REFRESH: 'refresh',
+};
+
+// The metrics a threshold alert can watch. `metric` is the value carried by the
+// scene event and matched by the trigger `metric` filter of the manifest; the
+// labels are French like the device and feature names shown in Gladys.
+export const ALERT_METRICS = [
+  {
+    metric: 'cpu',
+    feature: FEATURE.CPU,
+    snapshotKey: 'cpuPercent',
+    configKey: 'alert_cpu_percent',
+    unit: '%',
+    // Points under the threshold before the alert clears (see alerts.js).
+    hysteresis: 5,
+    label: { en: 'CPU usage', fr: 'Utilisation CPU' },
+  },
+  {
+    metric: 'memory',
+    feature: FEATURE.MEMORY,
+    snapshotKey: 'memoryPercent',
+    configKey: 'alert_memory_percent',
+    unit: '%',
+    hysteresis: 5,
+    label: { en: 'Memory usage', fr: 'Utilisation mémoire' },
+  },
+  {
+    metric: 'disk',
+    feature: FEATURE.DISK,
+    snapshotKey: 'diskPercent',
+    configKey: 'alert_disk_percent',
+    unit: '%',
+    hysteresis: 5,
+    label: { en: 'Disk usage', fr: 'Utilisation disque' },
+  },
+  {
+    metric: 'temperature',
+    feature: FEATURE.TEMPERATURE,
+    snapshotKey: 'temperature',
+    configKey: 'alert_temperature',
+    unit: '°C',
+    hysteresis: 3,
+    label: { en: 'CPU temperature', fr: 'Température CPU' },
+  },
+];
+
+// Chart spans offered by the widget `chart_interval` setting: `none` hides the
+// chart, the others are the core chart box interval enum.
+export const WIDGET_CHART_INTERVALS = [
+  'none',
+  'last-hour',
+  'last-twelve-hours',
+  'last-day',
+  'last-three-days',
+  'last-week',
+  'last-month',
+];
+export const DEFAULT_WIDGET_CHART_INTERVAL = 'last-day';
 
 // Deadband used for the free-space reading when the filesystem size is
 // unknown: 1 GiB is a sane "worth writing down" step on any real disk.
@@ -69,7 +150,7 @@ function round(value, decimals) {
  *
  * Everything it talks to is injectable so the behaviour can be tested without
  * a Linux host, a Gladys server or a real clock.
- * @param {{collector?: object, throttle?: object, listSensors?: Function, resolveSensor?: Function, setIntervalFn?: Function, clearIntervalFn?: Function}} options - Injectable dependencies, for tests.
+ * @param {{collector?: object, throttle?: object, listSensors?: Function, resolveSensor?: Function, alerts?: object, setIntervalFn?: Function, clearIntervalFn?: Function}} options - Injectable dependencies, for tests.
  * @returns {object} The device blueprint, in the shape src/devices/index.js expects.
  */
 export function createHostMonitor({
@@ -77,6 +158,7 @@ export function createHostMonitor({
   throttle = createStateThrottle(),
   listSensors = listTemperatureSensors,
   resolveSensor = resolveTemperatureSensor,
+  alerts = createAlertTracker(),
   setIntervalFn = setInterval,
   clearIntervalFn = clearInterval,
 } = {}) {
@@ -87,6 +169,12 @@ export function createHostMonitor({
   /** @type {Promise<void>|null} */
   let refreshInFlight = null;
 
+  // Last snapshot read, for the dashboard widget: it is pulled by the core at
+  // any time and must answer from memory, not trigger a read of its own (an
+  // extra /proc/stat read would shorten the CPU averaging window of the loop).
+  /** @type {object|null} */
+  let lastMetrics = null;
+
   /**
    * Read every metric and publish the ones that passed the throttle.
    * @param {object} gladys - The SDK instance.
@@ -96,6 +184,12 @@ export function createHostMonitor({
   async function refresh(gladys, config) {
     const ids = gladys.externalIds(DEVICE_TYPE, PLATFORM_DEVICE_ID);
     const metrics = await collector.read(config);
+    lastMetrics = metrics;
+
+    // Alerts come first and never throw: they are evaluated on every raw
+    // reading, whatever the throttle holds back, and a failed states batch
+    // must not delay a "disk full" scene.
+    await fireAlerts(gladys, metrics, config);
 
     // A percentage reading and a free-space reading do not deserve the same
     // threshold: the disk deadband is the same relative move, expressed in GiB.
@@ -155,7 +249,87 @@ export function createHostMonitor({
         `temp ${format(metrics.temperature, '°C')} -> ${toPublish.length}/${readings.length} state(s) published`,
     );
 
+    requestWidgetRefresh(gladys);
+
     return { metrics, publishedCount: toPublish.length };
+  }
+
+  /**
+   * Compare the readings with the alert thresholds and fire the
+   * `threshold_alert` scene trigger for each transition.
+   *
+   * Never throws: a transition Gladys did not accept stays uncommitted and is
+   * fired again at the next refresh.
+   * @param {object} gladys - The SDK instance.
+   * @param {object} metrics - The snapshot just read.
+   * @param {object} config - Normalized configuration.
+   * @returns {Promise<void>}
+   */
+  async function fireAlerts(gladys, metrics, config) {
+    const readings = ALERT_METRICS.map((entry) => ({
+      metric: entry.metric,
+      // Rounded like the published state, so the event and the chart agree.
+      value: round(metrics[entry.snapshotKey], 1),
+      threshold: config[entry.configKey],
+      hysteresis: entry.hysteresis,
+    }));
+    alerts.prune(readings);
+
+    for (const transition of alerts.evaluate(readings)) {
+      try {
+        await gladys.publishSceneEvent(
+          SCENE_TRIGGER.THRESHOLD_ALERT,
+          buildAlertEventData(transition, config),
+        );
+        alerts.commit(transition);
+        logger.info(
+          `Alert ${transition.status}: ${transition.metric} at ${transition.value} ` +
+            `(threshold ${transition.threshold})`,
+        );
+      } catch (err) {
+        logger.warn(
+          `Cannot fire the ${transition.status} alert for ${transition.metric}, ` +
+            `retried at the next refresh: ${err.message}`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Ask the core to re-pull the widget content. The device-bound tiles follow
+   * the states live on their own, but the alert statuses and the inline values
+   * (device not created yet) only change through a new pull.
+   *
+   * Fire-and-forget: rate-limited core-side, dropped while disconnected.
+   * @param {object} gladys - The SDK instance.
+   * @returns {void}
+   */
+  function requestWidgetRefresh(gladys) {
+    try {
+      gladys.requestWidgetRefresh(WIDGET.HOST_HEALTH);
+    } catch (err) {
+      logger.debug(`Widget refresh request failed: ${err.message}`);
+    }
+  }
+
+  /**
+   * Read now on behalf of a user or a scene, through the throttle.
+   *
+   * Unlike a timer tick, such a read answers someone: it waits for a read
+   * already in progress rather than being dropped.
+   * @param {object} gladys - The SDK instance.
+   * @param {object} config - Normalized configuration.
+   * @param {{full?: boolean}} options - `full` forgets the published values first, so every metric is republished.
+   * @returns {Promise<{metrics: object, publishedCount: number}>} What was read and published.
+   */
+  async function readNow(gladys, config, { full = false } = {}) {
+    while (refreshInFlight !== null) {
+      await refreshInFlight;
+    }
+    if (full) {
+      throttle.reset();
+    }
+    return startRefresh(gladys, config);
   }
 
   /**
@@ -305,11 +479,7 @@ export function createHostMonitor({
      * @returns {Promise<{metrics: object, publishedCount: number}>} What was read and published.
      */
     async refreshNow(gladys, config) {
-      // Unlike a timer tick, this refresh answers a user action: wait for a
-      // read already in progress rather than dropping it.
-      await refreshInFlight;
-      throttle.reset();
-      return startRefresh(gladys, config);
+      return readNow(gladys, config, { full: true });
     },
 
     // Manifest actions: buttons rendered in the Configuration screen. Both are
@@ -318,7 +488,7 @@ export function createHostMonitor({
     actions: {
       async test_metrics(gladys, { config }) {
         logger.info('Action test_metrics -> immediate read');
-        const { metrics, publishedCount } = await refresh(gladys, config);
+        const { metrics, publishedCount } = await readNow(gladys, config);
         const cpu = format(metrics.cpuPercent, '%');
         const ram = format(metrics.memoryPercent, '%');
         const disk = format(metrics.diskPercent, '%');
@@ -355,7 +525,283 @@ export function createHostMonitor({
         };
       },
     },
+
+    // Scene triggers this blueprint fires (declared in the manifest
+    // `scene_triggers`; the manifest test keeps both lists in sync).
+    sceneTriggers: [SCENE_TRIGGER.THRESHOLD_ALERT],
+
+    // Scene actions: cards of the scene editor, declared in the manifest
+    // `scene_actions`. The resolved object is the action `outputs`.
+    sceneActions: {
+      async read_metrics(gladys, { config }) {
+        logger.info('Scene action read_metrics -> immediate read');
+        // Through the throttle, like the button: a scene running every minute
+        // must not turn into one history row per metric per minute.
+        const { metrics } = await readNow(gladys, config);
+        return buildSceneOutputs(metrics);
+      },
+    },
+
+    // Dashboard widgets, declared in the manifest `widgets`.
+    widgets: {
+      [WIDGET.HOST_HEALTH]: {
+        async get(gladys, { settings, units, config }) {
+          return buildWidgetContent({
+            gladys,
+            config,
+            settings,
+            units,
+            metrics: lastMetrics,
+            isAlertActive: (metric) => alerts.isActive(metric),
+            deviceExternalId: gladys.externalIds(DEVICE_TYPE, PLATFORM_DEVICE_ID).device,
+          });
+        },
+
+        async action(gladys, actionKey, _params, { config }) {
+          if (actionKey !== WIDGET_ACTION.REFRESH) {
+            throw new Error(`Unknown widget action "${actionKey}"`);
+          }
+          const { publishedCount } = await readNow(gladys, config);
+          // The core drops the cached content after the ack: every open
+          // dashboard re-pulls it with the new snapshot.
+          return {
+            en: `Metrics read, ${publishedCount} state(s) published.`,
+            fr: `Métriques lues, ${publishedCount} état(s) publié(s).`,
+          };
+        },
+      },
+    },
   };
+}
+
+/**
+ * Build the flat data of a `threshold_alert` scene event. Every key must be
+ * declared in the manifest trigger `fields` or `variables` — the core drops the
+ * others (enforced by test/manifest.test.js).
+ *
+ * `message` is a ready-made French sentence, so the most common scene — "send
+ * me a message when the disk is full" — needs no template at all.
+ * @param {{metric: string, status: string, value: number, threshold: number}} transition - An alert transition.
+ * @param {object} config - Normalized configuration.
+ * @returns {Record<string, string|number>} The event data.
+ */
+export function buildAlertEventData(transition, config) {
+  const entry = ALERT_METRICS.find((candidate) => candidate.metric === transition.metric);
+  const value = `${transition.value} ${entry.unit}`;
+  const threshold = `${transition.threshold} ${entry.unit}`;
+  const message =
+    transition.status === ALERT_STATUS.RAISED
+      ? `${config.device_name} : ${entry.label.fr} à ${value} (seuil ${threshold})`
+      : `${config.device_name} : ${entry.label.fr} revenue à ${value} (seuil ${threshold})`;
+  return {
+    metric: transition.metric,
+    status: transition.status,
+    value: transition.value,
+    threshold: transition.threshold,
+    unit: entry.unit,
+    metric_label: entry.label.fr,
+    device_name: config.device_name,
+    message,
+  };
+}
+
+/**
+ * Build the outputs of the `read_metrics` scene action. An unavailable metric
+ * is `null`, never a fake 0 a scene condition would take for a real reading.
+ * @param {object} metrics - A metrics snapshot.
+ * @returns {Record<string, number|string|null>} The declared outputs.
+ */
+export function buildSceneOutputs(metrics) {
+  return {
+    cpu_percent: round(metrics.cpuPercent, 1),
+    memory_percent: round(metrics.memoryPercent, 1),
+    disk_percent: round(metrics.diskPercent, 1),
+    disk_free_gib: round(metrics.diskFreeGib, 2),
+    temperature: round(metrics.temperature, 1),
+    summary:
+      `CPU ${format(metrics.cpuPercent, ' %')}, mémoire ${format(metrics.memoryPercent, ' %')}, ` +
+      `disque ${format(metrics.diskPercent, ' %')} (${format(metrics.diskFreeGib, ' Gio')} libres), ` +
+      `température ${format(metrics.temperature, ' °C')}`,
+  };
+}
+
+/**
+ * Build the content of the `host_health` dashboard widget.
+ *
+ * Once the user has created the device, every tile and the chart are bound to
+ * its features (`device_feature`): the core renders them live from the
+ * published states, in the user's units, with no nudge from us. Before that —
+ * or for a feature the device was created without — the tile shows the last
+ * reading inline, so the widget is useful from the first minute.
+ *
+ * The layout stays inside the core content budget: five tiles, one chart, one
+ * status list, one button.
+ * @param {{gladys: object, config: object, settings?: object, units?: string, metrics: object|null, isAlertActive: Function, deviceExternalId: string}} options - What the content is built from.
+ * @returns {{ttl_seconds: number, components: object[]}} The widget content.
+ */
+export function buildWidgetContent({
+  gladys,
+  config,
+  settings,
+  units,
+  metrics,
+  isAlertActive,
+  deviceExternalId,
+}) {
+  const refreshButton = {
+    type: 'button',
+    label: { en: 'Read now', fr: 'Lire maintenant' },
+    icon: 'refresh-cw',
+    style: 'secondary',
+    action: { key: WIDGET_ACTION.REFRESH },
+  };
+
+  // The content outlives the refresh loop tick at most by one interval; the
+  // loop nudges the core after each read anyway.
+  const ttl = config.refresh_interval;
+
+  if (metrics === null) {
+    return {
+      ttl_seconds: 10,
+      components: [
+        {
+          type: 'text',
+          text: { en: 'First reading in progress…', fr: 'Première mesure en cours…' },
+        },
+        refreshButton,
+      ],
+    };
+  }
+
+  const created = (gladys.devices ?? []).find((device) => device.external_id === deviceExternalId);
+  const createdFeatures = new Map(
+    (created?.features ?? []).map((feature) => [feature.external_id, feature]),
+  );
+  const featureId = (key) => `${deviceExternalId}:${key}`;
+  const isBound = (key) => createdFeatures.has(featureId(key));
+  // Spread into a component: no `color` key at all outside an alert, so the
+  // tile keeps the core's neutral styling.
+  const alertColor = (metric) => (isAlertActive(metric) ? { color: WIDGET_COLORS.DANGER } : {});
+  const isUs = units === 'us';
+
+  const components = [];
+
+  const gauges = [
+    { key: FEATURE.CPU, metric: 'cpu', value: metrics.cpuPercent, label: 'CPU' },
+    {
+      key: FEATURE.MEMORY,
+      metric: 'memory',
+      value: metrics.memoryPercent,
+      label: { en: 'Memory', fr: 'Mémoire' },
+    },
+    {
+      key: FEATURE.DISK,
+      metric: 'disk',
+      value: metrics.diskPercent,
+      label: { en: 'Disk', fr: 'Disque' },
+    },
+  ];
+  for (const gauge of gauges) {
+    const base = { type: 'gauge', label: gauge.label, ...alertColor(gauge.metric) };
+    if (isBound(gauge.key)) {
+      components.push({ ...base, device_feature: featureId(gauge.key) });
+    } else if (Number.isFinite(gauge.value)) {
+      components.push({ ...base, value: round(gauge.value, 1), min: 0, max: 100, unit: '%' });
+    }
+  }
+
+  const temperatureLabel = { en: 'CPU temp.', fr: 'Temp. CPU' };
+  if (isBound(FEATURE.TEMPERATURE)) {
+    components.push({
+      type: 'value',
+      label: temperatureLabel,
+      icon: 'thermometer',
+      ...alertColor('temperature'),
+      device_feature: featureId(FEATURE.TEMPERATURE),
+    });
+  } else if (Number.isFinite(metrics.temperature)) {
+    components.push({
+      type: 'value',
+      label: temperatureLabel,
+      icon: 'thermometer',
+      ...alertColor('temperature'),
+      value: round(isUs ? celsiusToFahrenheit(metrics.temperature) : metrics.temperature, 1),
+      unit: isUs ? '°F' : '°C',
+    });
+  }
+
+  const freeLabel = { en: 'Free disk', fr: 'Disque libre' };
+  if (isBound(FEATURE.DISK_FREE)) {
+    components.push({
+      type: 'value',
+      label: freeLabel,
+      icon: 'hard-drive',
+      device_feature: featureId(FEATURE.DISK_FREE),
+    });
+  } else if (Number.isFinite(metrics.diskFreeGib)) {
+    components.push({
+      type: 'value',
+      label: freeLabel,
+      icon: 'hard-drive',
+      value: round(metrics.diskFreeGib, 1),
+      unit: { en: 'GiB', fr: 'Gio' },
+    });
+  }
+
+  // The chart plots the core's own history of the features: only possible on
+  // a created device whose features keep their history.
+  const interval = WIDGET_CHART_INTERVALS.includes(settings?.chart_interval)
+    ? settings.chart_interval
+    : DEFAULT_WIDGET_CHART_INTERVAL;
+  const charted = [FEATURE.CPU, FEATURE.MEMORY, FEATURE.DISK]
+    .map(featureId)
+    .filter((id) => createdFeatures.has(id) && createdFeatures.get(id).keep_history !== false);
+  if (interval !== 'none' && charted.length > 0) {
+    components.push({
+      type: 'chart',
+      chart_type: 'line',
+      title: { en: 'Usage history', fr: "Historique d'utilisation" },
+      unit: '%',
+      device_features: charted,
+      interval,
+    });
+  }
+
+  // One row per enabled alert, so the user sees what is watched and what fired.
+  const alertRows = ALERT_METRICS.filter(
+    (entry) => config[entry.configKey] > 0 && Number.isFinite(metrics[entry.snapshotKey]),
+  ).map((entry) => {
+    const active = isAlertActive(entry.metric);
+    const threshold =
+      entry.metric === 'temperature' && isUs
+        ? `${round(celsiusToFahrenheit(config[entry.configKey]), 0)} °F`
+        : `${config[entry.configKey]} ${entry.unit}`;
+    return {
+      label: entry.label,
+      value: active
+        ? { en: `Alert (≥ ${threshold})`, fr: `Alerte (≥ ${threshold})` }
+        : { en: `OK (< ${threshold})`, fr: `OK (< ${threshold})` },
+      icon: active ? 'alert-triangle' : 'check-circle',
+      color: active ? WIDGET_COLORS.DANGER : WIDGET_COLORS.SUCCESS,
+    };
+  });
+  if (alertRows.length > 0) {
+    components.push({ type: 'status', items: alertRows });
+  }
+
+  components.push(refreshButton);
+
+  return { ttl_seconds: ttl, components };
+}
+
+/**
+ * Convert Celsius to Fahrenheit, for the inline tiles of a `us` user (the
+ * device-bound ones are converted by the core).
+ * @param {number} celsius - Temperature in Celsius.
+ * @returns {number} Temperature in Fahrenheit.
+ */
+function celsiusToFahrenheit(celsius) {
+  return (celsius * 9) / 5 + 32;
 }
 
 /**

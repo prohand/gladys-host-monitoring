@@ -16,7 +16,7 @@ service, no data leaving your home.
 
 ## Installation
 
-Requires **Gladys 4.86 or later**. On an older version the integration simply
+Requires **Gladys 5.1 or later**. On an older version the integration simply
 does not appear in the catalog: update Gladys first.
 
 1. Install the integration from the Gladys catalog (category **Services**).
@@ -93,6 +93,77 @@ in use with a `>`. Copy the path you want into **CPU temperature sensor**.
   under the button, without waiting for the next refresh. This is the first test
   to run when a value looks wrong.
 - **List temperature sensors** — see above.
+
+## Dashboard widget
+
+Add the **Host health** box to a dashboard (box list, integrations section). It
+shows:
+
+- three gauges: CPU, memory, disk;
+- the CPU temperature (when a sensor exists) and the free disk space;
+- a CPU / memory / disk history chart;
+- the state of each alert (see below);
+- a **Read now** button.
+
+The box has a single setting, the **chart period** (last hour, 24 hours, week,
+month… or no chart). The chart only shows once the device has been added and
+keeps its history.
+
+Until the device is added from the Discovery screen, the box still shows the
+last reading. Once the device is added, the values update live.
+
+## Scenes
+
+### "Host metric alert" trigger
+
+The integration watches four thresholds, set in the Configuration screen
+(**Alerts for scenes** section):
+
+| Threshold       | Default |
+| --------------- | ------- |
+| CPU             | 90 %    |
+| Memory          | 90 %    |
+| Disk            | 90 %    |
+| CPU temperature | 80 °C   |
+
+Set a threshold to **0** to disable that alert.
+
+When a metric **reaches** its threshold, the trigger fires **once** ("Alert
+raised"). It fires once more when the metric **comes back down** ("Back to
+normal"): 5 points under the threshold for the percentages, 3 °C for the
+temperature. That margin keeps a disk hovering around 90 % from running your
+scenes at every reading.
+
+In the scene editor you can filter on the **metrics** (leave empty for all) and
+on the **event** (raised, back to normal, or both). These variables are
+available to the actions of the scene: `metric`, `metric_label`, `status`,
+`value`, `threshold`, `unit`, `device_name` and `message` — a ready-made
+message, in French, e.g. "Machine hôte : Utilisation disque à 92 % (seuil
+90 %)".
+
+Example: "when the disk reaches its threshold → send me a message with
+`message`".
+
+Good to know:
+
+- the alert is checked on **every reading**, even when the value is not
+  written to the history;
+- the CPU usage is an **average over the refresh interval**: a spike of a few
+  seconds triggers nothing;
+- after the integration restarts, an alert still in progress is **raised
+  again** on the first reading.
+
+### "Read the host metrics" action
+
+This action reads every metric when the scene reaches it and makes them
+available to the next actions: `cpu_percent`, `memory_percent`, `disk_percent`,
+`disk_free_gib`, `temperature` and `summary` (a one-line summary, in French). A
+metric that cannot be read is empty, never 0.
+
+Example: "every Monday at 9 am → read the host metrics → send me `summary`".
+
+The readings go through the same guardrails as the normal refresh: a scene
+running often does not fill the database.
 
 ## Troubleshooting
 

@@ -9,11 +9,43 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { DEVICE_BLUEPRINTS } from '../src/devices/index.js';
+import {
+  ALERT_METRICS,
+  DEFAULT_WIDGET_CHART_INTERVAL,
+  WIDGET_CHART_INTERVALS,
+  buildAlertEventData,
+  buildSceneOutputs,
+} from '../src/devices/hostMonitor.js';
+import { ALERT_STATUS } from '../src/publish/alerts.js';
 import { DEFAULT_CONFIG, normalizeConfig } from '../src/config.js';
 
 const manifest = JSON.parse(
   await readFile(new URL('../gladys-assistant-integration.json', import.meta.url), 'utf8'),
 );
+
+/**
+ * The minimum Gladys version the manifest claims compatibility with.
+ * @returns {[number, number]} Major and minor of the `>=` bound.
+ */
+function minimumGladysVersion() {
+  const match = manifest.gladys_version.match(/>=\s*(\d+)\.(\d+)\.\d+/);
+  assert.ok(match, 'gladys_version must declare a minimum version');
+  return [Number(match[1]), Number(match[2])];
+}
+
+/**
+ * The keys a blueprint field lists, across every blueprint.
+ * @param {string} field - Blueprint field (`sceneActions`, `widgets`…).
+ * @returns {Set<string>} The keys.
+ */
+function blueprintKeys(field) {
+  return new Set(
+    DEVICE_BLUEPRINTS.flatMap((bp) => {
+      const value = bp[field] ?? [];
+      return Array.isArray(value) ? value : Object.keys(value);
+    }),
+  );
+}
 
 test('every manifest action has a registered handler', () => {
   const handled = new Set(DEVICE_BLUEPRINTS.flatMap((bp) => Object.keys(bp.actions ?? {})));
@@ -126,11 +158,109 @@ test('declaring catalog categories requires Gladys >= 4.86.0', () => {
     manifest.categories.length >= 1 && manifest.categories.length <= 3,
     'the store accepts 1 to 3 categories',
   );
-  const minVersion = manifest.gladys_version.match(/>=\s*(\d+)\.(\d+)\.\d+/);
-  assert.ok(minVersion, 'gladys_version must declare a minimum version');
-  const [, major, minor] = minVersion.map(Number);
+  const [major, minor] = minimumGladysVersion();
   assert.ok(
     major > 4 || (major === 4 && minor >= 86),
     `categories requires gladys_version >= 4.86.0, got "${manifest.gladys_version}"`,
   );
+});
+
+// --- Gladys 5.1 capabilities: scene triggers, scene actions, widgets ---------
+
+test('declaring widgets or scene capabilities requires Gladys >= 5.1.0', () => {
+  // Same coupling as `categories`: an older core rejects the unknown fields.
+  const capabilities = ['widgets', 'scene_triggers', 'scene_actions'].filter(
+    (field) => manifest[field] !== undefined,
+  );
+  if (capabilities.length === 0) {
+    return;
+  }
+  const [major, minor] = minimumGladysVersion();
+  assert.ok(
+    major > 5 || (major === 5 && minor >= 1),
+    `${capabilities.join(', ')} requires gladys_version >= 5.1.0, got "${manifest.gladys_version}"`,
+  );
+});
+
+test('the scene triggers fired by the code are exactly the declared ones', () => {
+  // An undeclared key is a 404 on every event; a declared key the code never
+  // fires is a card in the scene editor that never starts anything.
+  assert.deepEqual(
+    new Set((manifest.scene_triggers ?? []).map((trigger) => trigger.key)),
+    blueprintKeys('sceneTriggers'),
+  );
+});
+
+test('the threshold_alert event only carries declared keys, and its filters match the code', () => {
+  const trigger = manifest.scene_triggers.find(({ key }) => key === 'threshold_alert');
+  const declared = new Set([
+    ...trigger.fields.map((field) => field.key),
+    ...trigger.variables.map((variable) => variable.key),
+  ]);
+  const data = buildAlertEventData(
+    { metric: 'disk', status: ALERT_STATUS.RAISED, value: 95, threshold: 90 },
+    normalizeConfig(),
+  );
+  // The core drops any key it does not know: it would never reach a scene.
+  for (const key of Object.keys(data)) {
+    assert.ok(declared.has(key), `event key "${key}" is not declared in the trigger`);
+  }
+  for (const variable of trigger.variables) {
+    assert.equal(typeof data[variable.key], variable.type, `variable "${variable.key}" type`);
+  }
+
+  const options = (key) =>
+    trigger.fields.find((field) => field.key === key).options.map((option) => option.value);
+  assert.deepEqual(
+    options('metric'),
+    ALERT_METRICS.map((entry) => entry.metric),
+  );
+  assert.deepEqual(options('status'), Object.values(ALERT_STATUS));
+});
+
+test('every alert threshold is a config key', () => {
+  for (const entry of ALERT_METRICS) {
+    assert.ok(entry.configKey in DEFAULT_CONFIG, `${entry.configKey} is not a config key`);
+  }
+});
+
+test('the scene actions handled by the code are exactly the declared ones', () => {
+  assert.deepEqual(
+    new Set((manifest.scene_actions ?? []).map((action) => action.key)),
+    blueprintKeys('sceneActions'),
+  );
+});
+
+test('read_metrics resolves exactly its declared outputs', () => {
+  // The core keeps only the declared outputs: an undeclared one is lost, a
+  // declared one never resolved is always empty in the scene.
+  const action = manifest.scene_actions.find(({ key }) => key === 'read_metrics');
+  const outputs = buildSceneOutputs({
+    cpuPercent: 1,
+    memoryPercent: 2,
+    diskPercent: 3,
+    diskFreeGib: 4,
+    temperature: 5,
+  });
+  assert.deepEqual(Object.keys(outputs).sort(), action.outputs.map((output) => output.key).sort());
+  for (const output of action.outputs) {
+    assert.equal(typeof outputs[output.key], output.type, `output "${output.key}" type`);
+  }
+});
+
+test('the widgets handled by the code are exactly the declared ones', () => {
+  assert.deepEqual(
+    new Set((manifest.widgets ?? []).map((widget) => widget.key)),
+    blueprintKeys('widgets'),
+  );
+});
+
+test('the host_health chart setting offers the intervals the code understands', () => {
+  const widget = manifest.widgets.find(({ key }) => key === 'host_health');
+  const setting = widget.settings.find(({ key }) => key === 'chart_interval');
+  assert.deepEqual(
+    setting.options.map((option) => option.value),
+    WIDGET_CHART_INTERVALS,
+  );
+  assert.equal(setting.default, DEFAULT_WIDGET_CHART_INTERVAL);
 });

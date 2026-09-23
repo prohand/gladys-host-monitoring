@@ -89,6 +89,32 @@ for (const blueprint of DEVICE_BLUEPRINTS) {
   }
 }
 
+// --- Scene actions: cards of the Gladys scene editor (Gladys >= 5.1) ---------
+// Declared in the manifest `scene_actions`; `fields` arrive resolved (scene
+// variables substituted, defaults applied) and the resolved object becomes the
+// action `outputs`. Throwing fails this action only, the scene goes on.
+for (const blueprint of DEVICE_BLUEPRINTS) {
+  for (const [actionKey, handler] of Object.entries(blueprint.sceneActions ?? {})) {
+    gladys.onSceneAction(actionKey, (fields) => handler(gladys, { fields, config }));
+  }
+}
+
+// --- Dashboard widgets (Gladys >= 5.1) ---------------------------------------
+// Declared in the manifest `widgets`. The core pulls the content (and caches it
+// for its `ttl_seconds`); a button carrying an `action` lands in onWidgetAction.
+for (const blueprint of DEVICE_BLUEPRINTS) {
+  for (const [widgetKey, widget] of Object.entries(blueprint.widgets ?? {})) {
+    gladys.onWidgetGet(widgetKey, ({ settings, language, units }) =>
+      widget.get(gladys, { settings, language, units, config }),
+    );
+    if (typeof widget.action === 'function') {
+      gladys.onWidgetAction(widgetKey, (actionKey, params, { settings }) =>
+        widget.action(gladys, actionKey, params, { settings, config }),
+      );
+    }
+  }
+}
+
 // --- Configuration updated by the user ---------------------------------------
 gladys.onConfigUpdated(async (newConfig) => {
   logger.info('onConfigUpdated -> new configuration received');

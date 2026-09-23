@@ -6,7 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A Gladys Assistant **external integration** (a container the Gladys supervisor runs alongside the
 server) that publishes one device carrying the health of the host machine: CPU usage, memory usage,
-disk usage, free disk space and CPU temperature. Everything is read from `/proc` and `/sys`;
+disk usage, free disk space and CPU temperature — plus, since Gladys 5.1, a dashboard widget, a scene
+trigger (threshold alerts) and a scene action (read the metrics). Everything is read from `/proc` and `/sys`;
 communication with Gladys goes through `@gladysassistant/integration-sdk` over a WebSocket the SDK
 manages itself.
 
@@ -47,13 +48,17 @@ Four layers, each ignorant of the one above it:
   `connect()`, hot-reloads config via `onConfigUpdated`, owns the start/stop of the refresh loops.
 - **`src/devices/`** — `index.js` is a registry over an array of _blueprints_; `hostMonitor.js` is the
   only blueprint today. A blueprint exposes `key`, `deviceExternalId(gladys)`,
-  `buildDevice(gladys, config)` and optionally `startPush`, `refreshNow`, `resetThrottle`, `actions`.
+  `buildDevice(gladys, config)` and optionally `startPush`, `refreshNow`, `resetThrottle`, `actions`,
+  `sceneTriggers` (keys it fires), `sceneActions`, `widgets` (`{ get, action? }` per widget key).
   Adding a second device type (another mount point, a per-container monitor) is a new file plus one
   entry in `DEVICE_BLUEPRINTS`, with no change to `index.js`.
 - **`src/metrics/`** — one file per metric, none of them aware of Gladys. `index.js` assembles them
   into a single snapshot and converts any failure into `null` (`safely()`), so a missing thermal
   sensor or an unmounted disk never blocks the other readings.
 - **`src/publish/throttle.js`** — decides what actually reaches the database.
+- **`src/publish/alerts.js`** — turns readings into `threshold_alert` scene events: one event per
+  transition (raised / cleared), with hysteresis, same pure `evaluate()` / `commit()`-after-success
+  split as the throttle. Evaluated on raw readings, before the throttle.
 
 `src/config.js` sits beside all of it: defaults, type coercion and clamping, so no other module ever
 sees a string where a number belongs.
@@ -111,9 +116,23 @@ blueprint's `actions` (and vice versa), every `DEFAULT_CONFIG` key is declared i
 the same `default`, and `normalizeConfig` clamps to the manifest's `min`/`max`. Change a config key or
 an action in one place and that test tells you about the other.
 
-The same test pins one store rule: declaring `categories` (the catalog shelves, `["services"]` here)
-forces `gladys_version` to start at 4.86.0 or later, because older cores reject any manifest field
-they do not know — the field and the minimum version move together or the install breaks.
+The same test pins the store version rules: declaring `categories` needs `gladys_version` ≥ 4.86.0,
+and `widgets` / `scene_triggers` / `scene_actions` need ≥ 5.1.0, because older cores reject any
+manifest field they do not know — the field and the minimum version move together or the install
+breaks. It also keeps the 5.1 capabilities in sync: declared scene triggers/actions/widgets ↔
+blueprint handlers, event data keys ⊆ the trigger's `fields` + `variables`, `read_metrics` outputs
+↔ declared `outputs`, widget setting options ↔ `WIDGET_CHART_INTERVALS`. Scene and widget keys are
+stored by users' scenes and dashboards: never rename or remove one.
+
+### Widget and scenes
+
+- The widget content is built from the **last snapshot in memory**, never from a fresh read (an
+  extra `/proc/stat` read would shorten the CPU averaging window). Tiles and chart bind to the
+  device features via `device_feature` once the device exists (live, no nudge needed); before
+  that they show inline values. `requestWidgetRefresh` runs after every refresh for the alert
+  statuses. Tests validate contents with the SDK's `validateWidgetContent`.
+- `read_metrics` and the widget button read **through the throttle** (`readNow()`), so a scene
+  running often cannot flood the history.
 
 Never hand-edit `version` or `docker_image` — the **Release** workflow (Actions → Release → patch /
 minor / major) bumps `package.json`, `package-lock.json` and both manifest fields together, tags

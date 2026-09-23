@@ -25,6 +25,11 @@ export const DEFAULT_CONFIG = {
   min_variation_temperature: 1, // degrees Celsius
   max_interval_minutes: 60, // publish at least once per hour, even if flat
   keep_history: true,
+  // Alert thresholds of the `threshold_alert` scene trigger; 0 disables one.
+  alert_cpu_percent: 90,
+  alert_memory_percent: 90,
+  alert_disk_percent: 90,
+  alert_temperature: 80, // degrees Celsius
 };
 
 // Bounds mirrored from the manifest `min`/`max`. Kept here so a value that
@@ -35,6 +40,10 @@ const BOUNDS = {
   min_variation: { min: 0, max: 50 },
   min_variation_temperature: { min: 0, max: 20 },
   max_interval_minutes: { min: 5, max: 1440 },
+  alert_cpu_percent: { min: 0, max: 100 },
+  alert_memory_percent: { min: 0, max: 100 },
+  alert_disk_percent: { min: 0, max: 100 },
+  alert_temperature: { min: 0, max: 120 },
 };
 
 /**
@@ -107,5 +116,9 @@ export function normalizeConfig(raw = {}) {
     max_interval_minutes: numericField(raw, 'max_interval_minutes'),
     // A checkbox: anything but an explicit false keeps the history on.
     keep_history: raw.keep_history !== false,
+    alert_cpu_percent: numericField(raw, 'alert_cpu_percent'),
+    alert_memory_percent: numericField(raw, 'alert_memory_percent'),
+    alert_disk_percent: numericField(raw, 'alert_disk_percent'),
+    alert_temperature: numericField(raw, 'alert_temperature'),
   };
 }
