@@ -191,8 +191,12 @@ test('before the device exists, the widget shows the last reading inline', async
   const content = await getWidget(fixture, config);
   assert.deepEqual(validateWidgetContent(content), []);
   assert.deepEqual(
-    content.components.filter((c) => c.type === 'gauge').map((c) => c.value),
-    [12.3, 48.6, 61.2],
+    content.components.filter((c) => c.type === 'gauge').map((c) => [c.value, c.unit]),
+    [
+      [12.3, '%'],
+      [48.6, '%'],
+      [61.2, '%'],
+    ],
   );
   assert.ok(
     content.components.every((c) => c.device_feature === undefined && c.type !== 'chart'),
@@ -201,7 +205,7 @@ test('before the device exists, the widget shows the last reading inline', async
   assert.equal(content.ttl_seconds, config.refresh_interval);
 });
 
-test('once the device exists, the tiles and the chart are bound to its features', async () => {
+test('once the device exists, the value tiles and the chart are bound to its features', async () => {
   const fixture = createFixture();
   const config = normalizeConfig();
   createDevice(fixture, config);
@@ -212,15 +216,21 @@ test('once the device exists, the tiles and the chart are bound to its features'
 
   const deviceId = fixture.monitor.deviceExternalId(fixture.gladys);
   const bound = content.components
-    .filter((c) => c.type === 'gauge' || c.type === 'value')
+    .filter((c) => c.type === 'value')
     .map((c) => c.device_feature.replace(`${deviceId}:`, ''));
-  assert.deepEqual(bound, [
-    FEATURE.CPU,
-    FEATURE.MEMORY,
-    FEATURE.DISK,
-    FEATURE.TEMPERATURE,
-    FEATURE.DISK_FREE,
-  ]);
+  assert.deepEqual(bound, [FEATURE.TEMPERATURE, FEATURE.DISK_FREE]);
+
+  // The core draws a device-bound gauge without any unit (issue #7): the
+  // gauges stay inline, with their "%".
+  const gauges = content.components.filter((c) => c.type === 'gauge');
+  assert.deepEqual(
+    gauges.map((c) => [c.value, c.unit, c.device_feature]),
+    [
+      [12.3, '%', undefined],
+      [48.6, '%', undefined],
+      [61.2, '%', undefined],
+    ],
+  );
 
   const chart = content.components.find((c) => c.type === 'chart');
   assert.equal(chart.interval, 'last-week');

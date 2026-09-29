@@ -127,9 +127,10 @@ stored by users' scenes and dashboards: never rename or remove one.
 ### Widget and scenes
 
 - The widget content is built from the **last snapshot in memory**, never from a fresh read (an
-  extra `/proc/stat` read would shorten the CPU averaging window). Tiles and chart bind to the
-  device features via `device_feature` once the device exists (live, no nudge needed); before
-  that they show inline values. `requestWidgetRefresh` runs after every refresh for the alert
+  extra `/proc/stat` read would shorten the CPU averaging window). Value tiles and chart bind to
+  the device features via `device_feature` once the device exists (live, no nudge needed); before
+  that they show inline values. The gauges are always inline: the core draws a device-bound gauge
+  with no unit (no "%"). `requestWidgetRefresh` runs after every refresh for the alert
   statuses. Tests validate contents with the SDK's `validateWidgetContent`.
 - `read_metrics` and the widget button read **through the throttle** (`readNow()`), so a scene
   running often cannot flood the history.

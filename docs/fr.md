@@ -106,7 +106,7 @@ dans **Sonde de température CPU**.
 Ajoutez la boîte **Santé de l'hôte** à un tableau de bord (liste des boîtes,
 section des intégrations). Elle affiche :
 
-- trois jauges : CPU, mémoire, disque ;
+- trois jauges en pourcentage : CPU, mémoire, disque ;
 - la température du CPU (si une sonde existe) et l'espace disque libre ;
 - un graphique de l'historique CPU / mémoire / disque ;
 - l'état de chaque alerte (voir plus bas) ;
@@ -117,8 +117,9 @@ Le seul réglage de la boîte est la **période du graphique** (dernière heure,
 l'appareil a été ajouté et qu'il conserve son historique.
 
 Tant que l'appareil n'est pas ajouté depuis l'écran Découverte, la boîte montre
-quand même la dernière mesure. Une fois l'appareil ajouté, les valeurs se
-mettent à jour en direct.
+quand même la dernière mesure. Une fois l'appareil ajouté, la température,
+l'espace libre et le graphique se mettent à jour en direct ; les trois jauges
+suivent chaque mesure de l'intégration.
 
 ## Scènes
 
