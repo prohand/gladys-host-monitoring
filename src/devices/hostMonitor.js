@@ -628,11 +628,12 @@ export function buildSceneOutputs(metrics) {
 /**
  * Build the content of the `host_health` dashboard widget.
  *
- * Once the user has created the device, every tile and the chart are bound to
- * its features (`device_feature`): the core renders them live from the
- * published states, in the user's units, with no nudge from us. Before that —
- * or for a feature the device was created without — the tile shows the last
- * reading inline, so the widget is useful from the first minute.
+ * Once the user has created the device, the temperature and free-space tiles
+ * and the chart are bound to its features (`device_feature`): the core renders
+ * them live from the published states, in the user's units, with no nudge from
+ * us. Before that — or for a feature the device was created without — the tile
+ * shows the last reading inline, so the widget is useful from the first minute.
+ * The three gauges are always inline (see below).
  *
  * The layout stays inside the core content budget: five tiles, one chart, one
  * status list, one button.
@@ -701,12 +702,22 @@ export function buildWidgetContent({
       label: { en: 'Disk', fr: 'Disque' },
     },
   ];
+  // The gauges stay inline even on a created device: the core draws a
+  // device-bound gauge with no unit at all (it ignores the component's `unit`
+  // and never reads the feature's), so "12.3" instead of "12.3 %". The value is
+  // the last reading, as fresh as the bound one — the loop nudges the widget
+  // after every refresh.
   for (const gauge of gauges) {
-    const base = { type: 'gauge', label: gauge.label, ...alertColor(gauge.metric) };
-    if (isBound(gauge.key)) {
-      components.push({ ...base, device_feature: featureId(gauge.key) });
-    } else if (Number.isFinite(gauge.value)) {
-      components.push({ ...base, value: round(gauge.value, 1), min: 0, max: 100, unit: '%' });
+    if (Number.isFinite(gauge.value)) {
+      components.push({
+        type: 'gauge',
+        label: gauge.label,
+        ...alertColor(gauge.metric),
+        value: round(gauge.value, 1),
+        min: 0,
+        max: 100,
+        unit: '%',
+      });
     }
   }
 

@@ -99,7 +99,7 @@ in use with a `>`. Copy the path you want into **CPU temperature sensor**.
 Add the **Host health** box to a dashboard (box list, integrations section). It
 shows:
 
-- three gauges: CPU, memory, disk;
+- three gauges in percent: CPU, memory, disk;
 - the CPU temperature (when a sensor exists) and the free disk space;
 - a CPU / memory / disk history chart;
 - the state of each alert (see below);
@@ -110,7 +110,8 @@ month… or no chart). The chart only shows once the device has been added and
 keeps its history.
 
 Until the device is added from the Discovery screen, the box still shows the
-last reading. Once the device is added, the values update live.
+last reading. Once the device is added, the temperature, the free space and the
+chart update live; the three gauges follow each reading of the integration.
 
 ## Scenes
 
