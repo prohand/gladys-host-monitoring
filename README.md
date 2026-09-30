@@ -78,14 +78,17 @@ so they add no reading and no history row of their own.
 
 - **Widget `host_health`** — CPU / memory / disk gauges, temperature and free
   space tiles, a usage chart, the alert statuses and a **Read now** button.
-  Once the device is created, the temperature / free-space tiles and the chart
-  are bound to its features (`device_feature`): the core renders them live, in
-  the user's units, from the states we already publish. Before that, the tiles
-  show the last snapshot inline. The three gauges are **always** inline (`value`
-  - `unit: '%'`): the core draws a device-bound gauge with no unit at all. The content is rebuilt from memory (`lastMetrics`), never by
-    an extra read — a second `/proc/stat` read would shorten the CPU averaging
-    window of the loop — and `requestWidgetRefresh` nudges the core after each
-    refresh. One setting: the chart interval (`none` hides it).
+  Once the device is created, the temperature tile and the chart are bound to
+  its features (`device_feature`): the core renders them live, in the user's
+  units, from the states we already publish. Before that, the tile shows the
+  last snapshot inline. The three gauges are **always** inline, in whole
+  percents (`value` + `unit: '%'`): the core draws a device-bound gauge with no
+  unit at all, and a decimal overlaps the arc on a phone. The free-space tile is
+  **always** inline too, at most three digits (`432 Go`, `1.8 To`): the core
+  renders the bound feature as `432.3 Go`, truncated in a five-tile row. The content is rebuilt from memory (`lastMetrics`), never by
+  an extra read — a second `/proc/stat` read would shorten the CPU averaging
+  window of the loop — and `requestWidgetRefresh` nudges the core after each
+  refresh. One setting: the chart interval (`none` hides it).
 - **Scene trigger `threshold_alert`** — fired once when a metric reaches its
   alert threshold (`alert_*` config keys, 0 disables one), once when it comes
   back down. [`src/publish/alerts.js`](./src/publish/alerts.js) follows the SDK

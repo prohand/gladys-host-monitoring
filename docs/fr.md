@@ -117,9 +117,10 @@ Le seul réglage de la boîte est la **période du graphique** (dernière heure,
 l'appareil a été ajouté et qu'il conserve son historique.
 
 Tant que l'appareil n'est pas ajouté depuis l'écran Découverte, la boîte montre
-quand même la dernière mesure. Une fois l'appareil ajouté, la température,
-l'espace libre et le graphique se mettent à jour en direct ; les trois jauges
-suivent chaque mesure de l'intégration.
+quand même la dernière mesure. Une fois l'appareil ajouté, la température et le
+graphique se mettent à jour en direct ; les trois jauges (en pourcentage entier)
+et l'espace libre (arrondi, par exemple 432 Go ou 1,8 To) suivent chaque mesure
+de l'intégration.
 
 ## Scènes
 

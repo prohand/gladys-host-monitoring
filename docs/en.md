@@ -110,8 +110,9 @@ month… or no chart). The chart only shows once the device has been added and
 keeps its history.
 
 Until the device is added from the Discovery screen, the box still shows the
-last reading. Once the device is added, the temperature, the free space and the
-chart update live; the three gauges follow each reading of the integration.
+last reading. Once the device is added, the temperature and the chart update
+live; the three gauges (in whole percents) and the free space (rounded, e.g.
+432 GB or 1.8 TB) follow each reading of the integration.
 
 ## Scenes
 

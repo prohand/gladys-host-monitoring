@@ -626,14 +626,27 @@ export function buildSceneOutputs(metrics) {
 }
 
 /**
+ * Format a free space for a widget tile, at most three significant digits so
+ * the tile never truncates it: "9.4 Go", "432 Go", "1.8 To".
+ * @param {number} gib - Free space in GiB.
+ * @returns {{value: number, unit: object}} The tile value and its unit.
+ */
+export function formatFreeSpace(gib) {
+  if (gib >= 1000) {
+    return { value: round(gib / 1024, 1), unit: { en: 'TB', fr: 'To' } };
+  }
+  return { value: round(gib, gib >= 10 ? 0 : 1), unit: { en: 'GB', fr: 'Go' } };
+}
+
+/**
  * Build the content of the `host_health` dashboard widget.
  *
- * Once the user has created the device, the temperature and free-space tiles
- * and the chart are bound to its features (`device_feature`): the core renders
- * them live from the published states, in the user's units, with no nudge from
- * us. Before that — or for a feature the device was created without — the tile
+ * Once the user has created the device, the temperature tile and the chart
+ * are bound to its features (`device_feature`): the core renders them live
+ * from the published states, in the user's units, with no nudge from us.
+ * Before that — or for a feature the device was created without — the tile
  * shows the last reading inline, so the widget is useful from the first minute.
- * The three gauges are always inline (see below).
+ * The three gauges and the free-space tile are always inline (see below).
  *
  * The layout stays inside the core content budget: five tiles, one chart, one
  * status list, one button.
@@ -706,14 +719,15 @@ export function buildWidgetContent({
   // device-bound gauge with no unit at all (it ignores the component's `unit`
   // and never reads the feature's), so "12.3" instead of "12.3 %". The value is
   // the last reading, as fresh as the bound one — the loop nudges the widget
-  // after every refresh.
+  // after every refresh. Whole percents: the core centres the text inside the
+  // arc at a fixed size, and "44,9 %" overlaps the arc on a phone-width tile.
   for (const gauge of gauges) {
     if (Number.isFinite(gauge.value)) {
       components.push({
         type: 'gauge',
         label: gauge.label,
         ...alertColor(gauge.metric),
-        value: round(gauge.value, 1),
+        value: round(gauge.value, 0),
         min: 0,
         max: 100,
         unit: '%',
@@ -741,21 +755,15 @@ export function buildWidgetContent({
     });
   }
 
-  const freeLabel = { en: 'Free disk', fr: 'Disque libre' };
-  if (isBound(FEATURE.DISK_FREE)) {
+  // Free space stays inline even on a created device: the core renders the
+  // bound feature as "432.3 Go", which a five-tile row truncates to "432.3 …".
+  // The inline value is as fresh (nudged after every refresh) and compact.
+  if (Number.isFinite(metrics.diskFreeGib)) {
     components.push({
       type: 'value',
-      label: freeLabel,
+      label: { en: 'Free disk', fr: 'Disque libre' },
       icon: 'hard-drive',
-      device_feature: featureId(FEATURE.DISK_FREE),
-    });
-  } else if (Number.isFinite(metrics.diskFreeGib)) {
-    components.push({
-      type: 'value',
-      label: freeLabel,
-      icon: 'hard-drive',
-      value: round(metrics.diskFreeGib, 1),
-      unit: { en: 'GiB', fr: 'Gio' },
+      ...formatFreeSpace(metrics.diskFreeGib),
     });
   }
 
