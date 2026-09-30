@@ -12,6 +12,7 @@ import {
   WIDGET,
   WIDGET_ACTION,
   buildAlertEventData,
+  formatFreeSpace,
 } from '../src/devices/hostMonitor.js';
 import { normalizeConfig } from '../src/config.js';
 import { createFixture, snapshot } from './helpers/hostFixture.js';
@@ -193,9 +194,9 @@ test('before the device exists, the widget shows the last reading inline', async
   assert.deepEqual(
     content.components.filter((c) => c.type === 'gauge').map((c) => [c.value, c.unit]),
     [
-      [12.3, '%'],
-      [48.6, '%'],
-      [61.2, '%'],
+      [12, '%'],
+      [49, '%'],
+      [61, '%'],
     ],
   );
   assert.ok(
@@ -205,7 +206,7 @@ test('before the device exists, the widget shows the last reading inline', async
   assert.equal(content.ttl_seconds, config.refresh_interval);
 });
 
-test('once the device exists, the value tiles and the chart are bound to its features', async () => {
+test('once the device exists, the temperature tile and the chart are bound to its features', async () => {
   const fixture = createFixture();
   const config = normalizeConfig();
   createDevice(fixture, config);
@@ -216,21 +217,25 @@ test('once the device exists, the value tiles and the chart are bound to its fea
 
   const deviceId = fixture.monitor.deviceExternalId(fixture.gladys);
   const bound = content.components
-    .filter((c) => c.type === 'value')
+    .filter((c) => c.device_feature !== undefined)
     .map((c) => c.device_feature.replace(`${deviceId}:`, ''));
-  assert.deepEqual(bound, [FEATURE.TEMPERATURE, FEATURE.DISK_FREE]);
+  assert.deepEqual(bound, [FEATURE.TEMPERATURE]);
 
   // The core draws a device-bound gauge without any unit (issue #7): the
-  // gauges stay inline, with their "%".
+  // gauges stay inline, with their "%", in whole percents to fit the arc.
   const gauges = content.components.filter((c) => c.type === 'gauge');
   assert.deepEqual(
     gauges.map((c) => [c.value, c.unit, c.device_feature]),
     [
-      [12.3, '%', undefined],
-      [48.6, '%', undefined],
-      [61.2, '%', undefined],
+      [12, '%', undefined],
+      [49, '%', undefined],
+      [61, '%', undefined],
     ],
   );
+
+  // The bound free-space tile renders "432.3 Go", truncated in a five-tile row.
+  const free = content.components.find((c) => c.icon === 'hard-drive');
+  assert.deepEqual([free.value, free.unit.fr, free.device_feature], [43, 'Go', undefined]);
 
   const chart = content.components.find((c) => c.type === 'chart');
   assert.equal(chart.interval, 'last-week');
@@ -263,13 +268,23 @@ test('an active alert turns its tile and its status row red', async () => {
   assert.deepEqual(validateWidgetContent(content), []);
   const diskGauge = content.components.find((c) => c.type === 'gauge' && c.value === 95);
   assert.equal(diskGauge.color, 'danger');
-  const cpuGauge = content.components.find((c) => c.type === 'gauge' && c.value === 12.3);
+  const cpuGauge = content.components.find((c) => c.type === 'gauge' && c.value === 12);
   assert.equal(cpuGauge.color, undefined, 'the others keep the neutral styling');
 
   const rows = content.components.find((c) => c.type === 'status').items;
   assert.deepEqual(
     rows.map((row) => row.color),
     ['success', 'success', 'danger', 'success'],
+  );
+});
+
+test('the free space is compact enough for a tile', () => {
+  assert.deepEqual(
+    [9.44, 42.5, 432.3, 1843].map((gib) => {
+      const { value, unit } = formatFreeSpace(gib);
+      return `${value} ${unit.fr}`;
+    }),
+    ['9.4 Go', '43 Go', '432 Go', '1.8 To'],
   );
 });
 
