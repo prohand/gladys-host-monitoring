@@ -108,7 +108,8 @@ section des intégrations). Elle affiche :
 
 - trois jauges en pourcentage : CPU, mémoire, disque ;
 - la température du CPU (si une sonde existe) et l'espace disque libre ;
-- un graphique de l'historique CPU / mémoire / disque ;
+- un graphique de l'historique CPU / mémoire / disque, avec la courbe de
+  température du CPU quand l'appareil a une sonde ;
 - l'état de chaque alerte (voir plus bas) ;
 - un bouton **Lire maintenant**.
 

@@ -77,7 +77,10 @@ manifest declarations. All three capabilities are fed by the same refresh loop,
 so they add no reading and no history row of their own.
 
 - **Widget `host_health`** — CPU / memory / disk gauges, temperature and free
-  space tiles, a usage chart, the alert statuses and a **Read now** button.
+  space tiles, a history chart, the alert statuses and a **Read now** button.
+  The chart plots CPU, memory, disk and — when the device has it — the
+  temperature (four features, the core's cap). It carries a single `unit`, so
+  the `%` is dropped once the temperature shares the chart.
   Once the device is created, the temperature tile and the chart are bound to
   its features (`device_feature`): the core renders them live, in the user's
   units, from the states we already publish. Before that, the tile shows the
