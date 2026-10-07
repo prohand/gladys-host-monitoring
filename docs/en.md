@@ -101,7 +101,8 @@ shows:
 
 - three gauges in percent: CPU, memory, disk;
 - the CPU temperature (when a sensor exists) and the free disk space;
-- a CPU / memory / disk history chart;
+- a CPU / memory / disk history chart, plus the CPU temperature curve when the
+  device has a sensor;
 - the state of each alert (see below);
 - a **Read now** button.
 

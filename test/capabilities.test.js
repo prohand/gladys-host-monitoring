@@ -239,7 +239,25 @@ test('once the device exists, the temperature tile and the chart are bound to it
 
   const chart = content.components.find((c) => c.type === 'chart');
   assert.equal(chart.interval, 'last-week');
+  assert.deepEqual(
+    chart.device_features.map((id) => id.replace(`${deviceId}:`, '')),
+    [FEATURE.CPU, FEATURE.MEMORY, FEATURE.DISK, FEATURE.TEMPERATURE],
+  );
+  // °C on the same chart: no "%" unit for the whole chart.
+  assert.equal(chart.unit, undefined);
+});
+
+test('without a temperature sensor, the chart keeps its percent unit', async () => {
+  const fixture = createFixture({ sensorPath: null });
+  const config = normalizeConfig();
+  createDevice(fixture, config);
+  await fixture.monitor.actions.test_metrics(fixture.gladys, { config });
+
+  const content = await getWidget(fixture, config);
+  assert.deepEqual(validateWidgetContent(content), []);
+  const chart = content.components.find((c) => c.type === 'chart');
   assert.equal(chart.device_features.length, 3);
+  assert.equal(chart.unit, '%');
 });
 
 test('no chart without history, nor when the setting hides it', async () => {

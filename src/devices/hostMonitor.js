@@ -642,7 +642,7 @@ export function formatFreeSpace(gib) {
  * Build the content of the `host_health` dashboard widget.
  *
  * Once the user has created the device, the temperature tile and the chart
- * are bound to its features (`device_feature`): the core renders them live
+ * (CPU, memory, disk and, when present, temperature) are bound to its features (`device_feature`): the core renders them live
  * from the published states, in the user's units, with no nudge from us.
  * Before that — or for a feature the device was created without — the tile
  * shows the last reading inline, so the widget is useful from the first minute.
@@ -768,19 +768,25 @@ export function buildWidgetContent({
   }
 
   // The chart plots the core's own history of the features: only possible on
-  // a created device whose features keep their history.
+  // a created device whose features keep their history. The temperature is
+  // plotted too when the device has it (four features, the core's cap).
   const interval = WIDGET_CHART_INTERVALS.includes(settings?.chart_interval)
     ? settings.chart_interval
     : DEFAULT_WIDGET_CHART_INTERVAL;
-  const charted = [FEATURE.CPU, FEATURE.MEMORY, FEATURE.DISK]
+  const charted = [FEATURE.CPU, FEATURE.MEMORY, FEATURE.DISK, FEATURE.TEMPERATURE]
     .map(featureId)
     .filter((id) => createdFeatures.has(id) && createdFeatures.get(id).keep_history !== false);
   if (interval !== 'none' && charted.length > 0) {
+    // One `unit` for the whole chart: a "%" would mislabel the temperature
+    // curve, so it is left out once degrees share the chart.
+    const mixedUnits = charted.includes(featureId(FEATURE.TEMPERATURE));
     components.push({
       type: 'chart',
       chart_type: 'line',
-      title: { en: 'Usage history', fr: "Historique d'utilisation" },
-      unit: '%',
+      title: mixedUnits
+        ? { en: 'History', fr: 'Historique' }
+        : { en: 'Usage history', fr: "Historique d'utilisation" },
+      ...(mixedUnits ? {} : { unit: '%' }),
       device_features: charted,
       interval,
     });

@@ -6,6 +6,10 @@ All notable changes to this integration are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Widget chart: the CPU temperature curve, when the device has a sensor
+
 ## [2.1.0] - 2026-10-06
 
 ### Added
