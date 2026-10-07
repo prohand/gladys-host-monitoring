@@ -6,6 +6,10 @@ All notable changes to this integration are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-10-07
+
+- Maintenance release, no functional change.
+
 ## [2.1.1] - 2026-10-07
 
 ### Added
@@ -69,7 +73,8 @@ First public release.
 - Détecter les appareils créés avec d'anciennes fonctionnalités
 - Publier un instantané complet quand l'appareil est créé
 
-[Unreleased]: https://github.com/prohand/gladys-host-monitoring/compare/v2.1.1...HEAD
+[Unreleased]: https://github.com/prohand/gladys-host-monitoring/compare/v2.2.0...HEAD
+[2.2.0]: https://github.com/prohand/gladys-host-monitoring/compare/v2.1.1...v2.2.0
 [2.1.1]: https://github.com/prohand/gladys-host-monitoring/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/prohand/gladys-host-monitoring/compare/v2.0.2...v2.1.0
 [2.0.2]: https://github.com/prohand/gladys-host-monitoring/compare/v2.0.1...v2.0.2
