@@ -6,6 +6,8 @@ All notable changes to this integration are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-10-08
+
 ### Fixed
 
 - The refresh loop is started before the device is published: a Gladys that did
@@ -102,7 +104,8 @@ First public release.
 - Détecter les appareils créés avec d'anciennes fonctionnalités
 - Publier un instantané complet quand l'appareil est créé
 
-[Unreleased]: https://github.com/prohand/gladys-host-monitoring/compare/v2.2.0...HEAD
+[Unreleased]: https://github.com/prohand/gladys-host-monitoring/compare/v2.2.1...HEAD
+[2.2.1]: https://github.com/prohand/gladys-host-monitoring/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/prohand/gladys-host-monitoring/compare/v2.1.1...v2.2.0
 [2.1.1]: https://github.com/prohand/gladys-host-monitoring/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/prohand/gladys-host-monitoring/compare/v2.0.2...v2.1.0
