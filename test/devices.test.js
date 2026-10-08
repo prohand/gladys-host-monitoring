@@ -340,3 +340,60 @@ test('the throttle keeps a batch Gladys refused, so the next refresh retries it'
   await monitor.actions.test_metrics(gladys, { config });
   assert.equal(gladys.published.length, 5, 'the refused snapshot is published again');
 });
+
+// --- Reads asked by a user or a scene ----------------------------------------
+// Each of them used to read /proc/stat again, closing the CPU window early: two
+// clicks a second apart averaged the CPU over one second.
+
+test('a read asked right after another reuses its snapshot', async () => {
+  const fixture = createFixture({
+    readings: [snapshot({ cpuPercent: 10 }), snapshot({ cpuPercent: 80 })],
+    reuseWindowMs: 10_000,
+  });
+  const { monitor, gladys, state } = fixture;
+  const config = normalizeConfig();
+
+  await monitor.actions.test_metrics(gladys, { config });
+  fixture.advance(2_000);
+  const outputs = await monitor.sceneActions.read_metrics(gladys, { config });
+  assert.equal(state.reads, 1, 'the host is not read again');
+  assert.equal(outputs.cpu_percent, 10);
+
+  fixture.advance(10_000);
+  await monitor.actions.test_metrics(gladys, { config });
+  assert.equal(state.reads, 2, 'an older snapshot is read anew');
+});
+
+test('a full snapshot asked right after a read republishes it without reading again', async () => {
+  const fixture = createFixture({ reuseWindowMs: 10_000 });
+  const { monitor, gladys, state } = fixture;
+  const config = normalizeConfig();
+
+  await monitor.actions.test_metrics(gladys, { config });
+  gladys.published.length = 0;
+  await monitor.refreshNow(gladys, config);
+
+  assert.equal(state.reads, 1);
+  assert.equal(gladys.published.length, 5, 'every metric goes out again');
+});
+
+test('a CPU usage averaged over too short a window raises no alert', async () => {
+  const { monitor, gladys } = createFixture({
+    readings: [
+      snapshot({ cpuPercent: 99, cpuWindowMs: 1_000 }),
+      snapshot({ cpuPercent: 99, cpuWindowMs: 300_000 }),
+    ],
+  });
+  const config = normalizeConfig();
+
+  await monitor.actions.test_metrics(gladys, { config });
+  assert.deepEqual(gladys.sceneEvents, [], 'a one-second spike is not a load');
+  // Still published: the window only matters to the alert.
+  assert.equal(publishedByFeature(gladys, monitor)[FEATURE.CPU], 99);
+
+  await monitor.actions.test_metrics(gladys, { config });
+  assert.deepEqual(
+    gladys.sceneEvents.map(({ data }) => [data.metric, data.status]),
+    [['cpu', 'raised']],
+  );
+});

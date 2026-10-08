@@ -29,13 +29,16 @@ export function snapshot(overrides = {}) {
 
 /**
  * Build a host monitor whose metrics, sensors and clock are all controlled.
- * @param {{readings?: object[], sensorPath?: string|null, sensors?: object[]}} options - Test doubles.
+ * Every read of the fixture is a real read by default (`reuseWindowMs: 0`):
+ * most tests model successive refreshes, not two clicks a second apart.
+ * @param {{readings?: object[], sensorPath?: string|null, sensors?: object[], reuseWindowMs?: number}} options - Test doubles.
  * @returns {{monitor: object, gladys: object, advance: Function, reads: number}} The fixture.
  */
 export function createFixture({
   readings = [snapshot()],
   sensorPath = '/sys/fake/temp',
   sensors = [],
+  reuseWindowMs = 0,
 } = {}) {
   let clock = 1_000_000;
   let index = 0;
@@ -51,6 +54,8 @@ export function createFixture({
     throttle: createStateThrottle({ now: () => clock }),
     resolveSensor: () => sensorPath,
     listSensors: () => sensors,
+    now: () => clock,
+    reuseWindowMs,
   });
   return {
     monitor,

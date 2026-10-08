@@ -15,6 +15,15 @@
 // Detection is synchronous on purpose: buildDevice() decides whether to declare
 // the temperature feature at all, and a device must not advertise a sensor that
 // will never publish a value. These are a handful of tiny sysfs reads.
+//
+// Detection is also RARE: the sensor it picks is remembered
+// (createTemperatureSensorResolver) and every refresh reads that one file
+// only. Re-ranking every sensor at each refresh used to blocking-read the whole
+// of /sys/class/thermal and /sys/class/hwmon every few minutes, and — worse —
+// a single implausible reading of coretemp (a driver hiccup) dropped it from
+// the ranking for that cycle, so an NVMe or acpitz zone got published under
+// "Température CPU". A bad reading now means no value this cycle; only several
+// in a row send the resolver looking for another sensor.
 // -----------------------------------------------------------------------------
 
 import { readdirSync, readFileSync } from 'node:fs';
@@ -202,4 +211,86 @@ export async function readTemperature(path, { readFileFn = readFile } = {}) {
     logger.warn(`Cannot read the temperature sensor ${path}: ${err.message}`);
     return null;
   }
+}
+
+// Consecutive unusable readings of the remembered sensor before it is given up
+// and the detection runs again. One bad reading is a hiccup, not a new board.
+export const SENSOR_MAX_FAILURES = 3;
+
+/**
+ * Build a resolver that remembers the auto-detected sensor.
+ *
+ * `resolve()` stays synchronous (buildDevice needs the answer) but only runs
+ * the detection when nothing is remembered, when asked to (`redetect`, on a
+ * scan or a (re)connection) or after `maxFailures` consecutive unusable
+ * readings reported through `recordReading()`. A path configured by the user
+ * is returned as is and never remembered: it always wins.
+ * @param {{listSensorsFn?: Function, maxFailures?: number}} options - Injectable dependencies, for tests.
+ * @returns {{resolve: Function, recordReading: Function, forget: Function}} The resolver.
+ */
+export function createTemperatureSensorResolver({
+  listSensorsFn = listTemperatureSensors,
+  maxFailures = SENSOR_MAX_FAILURES,
+} = {}) {
+  /** @type {string|null|undefined} undefined = not detected yet, null = no sensor found. */
+  let detected;
+  let failures = 0;
+
+  return {
+    /**
+     * The sysfs path to read.
+     * @param {{temperature_sensor_path?: string}} config - Integration configuration.
+     * @param {{redetect?: boolean}} options - `redetect` forgets the remembered sensor first.
+     * @returns {string | null} Path to read, or null when no sensor is available.
+     */
+    resolve(config = {}, { redetect = false } = {}) {
+      const configured = (config.temperature_sensor_path ?? '').trim();
+      if (configured !== '') {
+        return configured;
+      }
+      if (redetect || detected === undefined) {
+        const [best] = listSensorsFn();
+        detected = best === undefined ? null : best.path;
+        failures = 0;
+        if (best !== undefined) {
+          logger.debug(`Auto-detected CPU sensor: ${best.name} (${best.path})`);
+        }
+      }
+      return detected;
+    },
+
+    /**
+     * Report what the resolved sensor read, so a sensor that keeps failing is
+     * eventually replaced while a one-off bad reading is not.
+     * @param {string | null} path - The path that was read.
+     * @param {number | null} celsius - What it read (null when unusable).
+     * @returns {void}
+     */
+    recordReading(path, celsius) {
+      if (path === null || path !== detected) {
+        return;
+      }
+      if (Number.isFinite(celsius)) {
+        failures = 0;
+        return;
+      }
+      failures += 1;
+      if (failures >= maxFailures) {
+        logger.warn(
+          `The temperature sensor ${path} failed ${failures} reads in a row, detecting again`,
+        );
+        detected = undefined;
+        failures = 0;
+      }
+    },
+
+    /**
+     * Forget the remembered sensor: the next resolve() detects again.
+     * @returns {void}
+     */
+    forget() {
+      detected = undefined;
+      failures = 0;
+    },
+  };
 }
