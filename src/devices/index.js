@@ -32,10 +32,11 @@ export const DEVICE_BLUEPRINTS = [hostMonitor];
  * Build the discovery payload for Gladys (all devices).
  * @param {object} gladys - The SDK instance.
  * @param {object} config - Normalized configuration.
+ * @param {object[]} blueprints - The blueprints to build (injectable for tests).
  * @returns {object[]} The discovered devices.
  */
-export function buildDiscoveredDevices(gladys, config) {
-  return DEVICE_BLUEPRINTS.map((blueprint) => blueprint.buildDevice(gladys, config));
+export function buildDiscoveredDevices(gladys, config, blueprints = DEVICE_BLUEPRINTS) {
+  return blueprints.map((blueprint) => blueprint.buildDevice(gladys, config));
 }
 
 /**
@@ -70,12 +71,18 @@ export function findBlueprintByDevice(gladys, device) {
  * @param {object} gladys - The SDK instance.
  * @param {object[]} createdDevices - The devices actually created by the user (gladys.getDevices()).
  * @param {object} config - Normalized configuration.
+ * @param {object[]} blueprints - The blueprints to check (injectable for tests).
  * @returns {{name: string, deviceExternalId: string, missingFeatures: string[]}[]} One entry per outdated device.
  */
-export function findOutdatedDevices(gladys, createdDevices, config) {
+export function findOutdatedDevices(
+  gladys,
+  createdDevices,
+  config,
+  blueprints = DEVICE_BLUEPRINTS,
+) {
   const outdated = [];
 
-  for (const blueprint of DEVICE_BLUEPRINTS) {
+  for (const blueprint of blueprints) {
     const deviceExternalId = blueprint.deviceExternalId(gladys);
     const created = (createdDevices ?? []).find(
       (device) => device.external_id === deviceExternalId,
@@ -122,10 +129,11 @@ export async function refreshDeviceNow(gladys, device, config) {
 
 /**
  * Forget every published value, so the next refresh publishes a full snapshot.
+ * @param {object[]} blueprints - The blueprints to reset (injectable for tests).
  * @returns {void}
  */
-export function resetThrottles() {
-  for (const blueprint of DEVICE_BLUEPRINTS) {
+export function resetThrottles(blueprints = DEVICE_BLUEPRINTS) {
+  for (const blueprint of blueprints) {
     blueprint.resetThrottle?.();
   }
 }

@@ -35,7 +35,7 @@ import {
 import { createMetricsCollector } from '../metrics/index.js';
 import { createStateThrottle } from '../publish/throttle.js';
 import { createAlertTracker, ALERT_STATUS } from '../publish/alerts.js';
-import { listTemperatureSensors, resolveTemperatureSensor } from '../metrics/temperature.js';
+import { listTemperatureSensors, createTemperatureSensorResolver } from '../metrics/temperature.js';
 import { BYTES_PER_GIB } from '../metrics/disk.js';
 
 const DEVICE_TYPE = 'host';
@@ -126,6 +126,19 @@ export const WIDGET_CHART_INTERVALS = [
 ];
 export const DEFAULT_WIDGET_CHART_INTERVAL = 'last-day';
 
+// A read asked by a user or a scene (button, read_metrics, device created)
+// within this delay of the previous read reuses that snapshot instead of
+// reading the host again. A new /proc/stat read would close the CPU window of
+// the loop early: two clicks a second apart average the CPU over one second,
+// i.e. publish a spike as if it were the load.
+export const READ_REUSE_MS = 10_000;
+
+// Shortest CPU averaging window a threshold alert is evaluated on. The very
+// first read samples one second only; a one-second burst at 100 % is not "the
+// CPU is overloaded" and must not start a scene. The next scheduled read
+// (a full refresh interval later) evaluates it.
+export const MIN_ALERT_CPU_WINDOW_MS = 10_000;
+
 // Deadband used for the free-space reading when the filesystem size is
 // unknown: 1 GiB is a sane "worth writing down" step on any real disk.
 const FALLBACK_DISK_DEADBAND_GIB = 1;
@@ -150,17 +163,22 @@ function round(value, decimals) {
  *
  * Everything it talks to is injectable so the behaviour can be tested without
  * a Linux host, a Gladys server or a real clock.
- * @param {{collector?: object, throttle?: object, listSensors?: Function, resolveSensor?: Function, alerts?: object, setIntervalFn?: Function, clearIntervalFn?: Function}} options - Injectable dependencies, for tests.
+ * @param {{sensorResolver?: object, collector?: object, throttle?: object, listSensors?: Function, resolveSensor?: Function, alerts?: object, setIntervalFn?: Function, clearIntervalFn?: Function, now?: Function, reuseWindowMs?: number}} options - Injectable dependencies, for tests.
  * @returns {object} The device blueprint, in the shape src/devices/index.js expects.
  */
 export function createHostMonitor({
-  collector = createMetricsCollector(),
+  // One resolver shared by the device payload and the collector, so the
+  // feature is declared for the very sensor the refreshes read.
+  sensorResolver = createTemperatureSensorResolver(),
+  collector = createMetricsCollector({ sensorResolver }),
   throttle = createStateThrottle(),
   listSensors = listTemperatureSensors,
-  resolveSensor = resolveTemperatureSensor,
+  resolveSensor = (config, options) => sensorResolver.resolve(config, options),
   alerts = createAlertTracker(),
   setIntervalFn = setInterval,
   clearIntervalFn = clearInterval,
+  now = Date.now,
+  reuseWindowMs = READ_REUSE_MS,
 } = {}) {
   // Guard against overlapping runs: a slow read (an unresponsive NFS mount on
   // the measured path) must not stack timers on top of each other. Held as a
@@ -174,17 +192,25 @@ export function createHostMonitor({
   // extra /proc/stat read would shorten the CPU averaging window of the loop).
   /** @type {object|null} */
   let lastMetrics = null;
+  // When `lastMetrics` was read (clock of `now`), for the reuse window.
+  let lastReadAt = Number.NEGATIVE_INFINITY;
 
   /**
-   * Read every metric and publish the ones that passed the throttle.
+   * Read every metric (or reuse a snapshot just read) and publish the ones
+   * that passed the throttle.
    * @param {object} gladys - The SDK instance.
    * @param {object} config - Normalized configuration.
+   * @param {{reuse?: object|null}} options - `reuse`: a snapshot to publish instead of reading the host.
    * @returns {Promise<{metrics: object, publishedCount: number}>} What was read and how much of it was published.
    */
-  async function refresh(gladys, config) {
+  async function refresh(gladys, config, { reuse = null } = {}) {
     const ids = gladys.externalIds(DEVICE_TYPE, PLATFORM_DEVICE_ID);
-    const metrics = await collector.read(config);
-    lastMetrics = metrics;
+    let metrics = reuse;
+    if (metrics === null) {
+      metrics = await collector.read(config);
+      lastMetrics = metrics;
+      lastReadAt = now();
+    }
 
     // Alerts come first and never throw: they are evaluated on every raw
     // reading, whatever the throttle holds back, and a failed states batch
@@ -266,10 +292,14 @@ export function createHostMonitor({
    * @returns {Promise<void>}
    */
   async function fireAlerts(gladys, metrics, config) {
+    // A CPU usage averaged over too short a window is left out of the
+    // evaluation (a null value changes nothing, see alerts.js).
+    const shortCpuWindow =
+      Number.isFinite(metrics.cpuWindowMs) && metrics.cpuWindowMs < MIN_ALERT_CPU_WINDOW_MS;
     const readings = ALERT_METRICS.map((entry) => ({
       metric: entry.metric,
       // Rounded like the published state, so the event and the chart agree.
-      value: round(metrics[entry.snapshotKey], 1),
+      value: entry.metric === 'cpu' && shortCpuWindow ? null : round(metrics[entry.snapshotKey], 1),
       threshold: config[entry.configKey],
       hysteresis: entry.hysteresis,
     }));
@@ -316,7 +346,8 @@ export function createHostMonitor({
    * Read now on behalf of a user or a scene, through the throttle.
    *
    * Unlike a timer tick, such a read answers someone: it waits for a read
-   * already in progress rather than being dropped.
+   * already in progress rather than being dropped. A snapshot younger than
+   * `reuseWindowMs` is published again instead of read anew (READ_REUSE_MS).
    * @param {object} gladys - The SDK instance.
    * @param {object} config - Normalized configuration.
    * @param {{full?: boolean}} options - `full` forgets the published values first, so every metric is republished.
@@ -329,17 +360,19 @@ export function createHostMonitor({
     if (full) {
       throttle.reset();
     }
-    return startRefresh(gladys, config);
+    const fresh = lastMetrics !== null && now() - lastReadAt < reuseWindowMs;
+    return startRefresh(gladys, config, { reuse: fresh ? lastMetrics : null });
   }
 
   /**
    * Run a refresh and expose it as the in-flight one until it settles.
    * @param {object} gladys - The SDK instance.
    * @param {object} config - Normalized configuration.
+   * @param {{reuse?: object|null}} options - Forwarded to refresh().
    * @returns {Promise<{metrics: object, publishedCount: number}>} The refresh result.
    */
-  function startRefresh(gladys, config) {
-    const running = refresh(gladys, config);
+  function startRefresh(gladys, config, options) {
+    const running = refresh(gladys, config, options);
     // The tracked promise swallows the failure: callers waiting for the slot to
     // free up care that the read is over, not how it went. The real promise is
     // returned untouched, so the caller still sees the error.
@@ -397,8 +430,10 @@ export function createHostMonitor({
 
       // Only advertise the temperature when a sensor is actually readable: a
       // feature that never receives a value is worse than a missing one, it
-      // looks broken forever on the device screen.
-      if (resolveSensor(config) !== null) {
+      // looks broken forever on the device screen. Building the payload (on a
+      // connection, a scan, a configuration change) is also when the sensor is
+      // detected again; the refreshes in between read the one remembered.
+      if (resolveSensor(config, { redetect: true }) !== null) {
         device.features.push({
           name: 'Température CPU',
           external_id: ids.feature(FEATURE.TEMPERATURE),

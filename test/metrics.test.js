@@ -7,7 +7,9 @@ import {
   parseTemperature,
   listTemperatureSensors,
   resolveTemperatureSensor,
+  createTemperatureSensorResolver,
 } from '../src/metrics/temperature.js';
+import { createMetricsCollector } from '../src/metrics/index.js';
 
 // --- CPU ---------------------------------------------------------------------
 
@@ -64,6 +66,34 @@ test('the first read samples a short window, later reads compare with the previo
   // Since the end of that window: 400 elapsed, 200 idle -> 50%, no extra sleep.
   assert.equal(await reader.read(), 50);
   assert.equal(slept, 1000, 'later reads must not sleep');
+});
+
+test('the CPU reader tells how long the usage was averaged over', async () => {
+  const samples = [
+    'cpu  100 0 0 900 0 0 0 0\n',
+    'cpu  150 0 0 950 0 0 0 0\n',
+    'cpu  350 0 0 1150 0 0 0 0\n',
+  ];
+  let index = 0;
+  let clock = 0;
+  const reader = createCpuReader({
+    readFileFn: async () => samples[index++],
+    sleep: async (ms) => {
+      clock += ms;
+    },
+    firstReadWindowMs: 1000,
+    now: () => clock,
+  });
+
+  await reader.read();
+  assert.equal(reader.lastWindowMs(), 1000, 'the first read samples one second');
+
+  clock += 300_000;
+  await reader.read();
+  assert.equal(reader.lastWindowMs(), 300_000, 'later reads span the time since the previous');
+
+  reader.reset();
+  assert.equal(reader.lastWindowMs(), null);
 });
 
 // --- Memory ------------------------------------------------------------------
@@ -209,4 +239,123 @@ test('resolveTemperatureSensor returns null when the machine exposes no sensor',
     resolveTemperatureSensor({}, { ...fakeSysfs({}), thermalDir: '/x', hwmonDir: '/y' }),
     null,
   );
+});
+
+// --- Remembered sensor -------------------------------------------------------
+
+/**
+ * A sensor list whose content can change between two detections.
+ * @param {object[][]} rankings - Successive results of listTemperatureSensors.
+ * @returns {{listSensorsFn: Function, calls: () => number}} The fake and its call count.
+ */
+function sensorLists(rankings) {
+  let calls = 0;
+  return {
+    listSensorsFn: () => rankings[Math.min(calls++, rankings.length - 1)],
+    calls: () => calls,
+  };
+}
+
+const CORETEMP = { path: '/hwmon/hwmon1/temp1_input', name: 'coretemp', celsius: 55, score: 0 };
+const NVME = { path: '/hwmon/hwmon0/temp1_input', name: 'nvme', celsius: 38, score: Infinity };
+
+test('the detected sensor is remembered: refreshes do not scan sysfs again', () => {
+  const lists = sensorLists([[CORETEMP, NVME]]);
+  const resolver = createTemperatureSensorResolver(lists);
+
+  assert.equal(resolver.resolve({}), CORETEMP.path);
+  resolver.recordReading(CORETEMP.path, 55);
+  assert.equal(resolver.resolve({}), CORETEMP.path);
+  assert.equal(lists.calls(), 1);
+
+  assert.equal(resolver.resolve({}, { redetect: true }), CORETEMP.path);
+  assert.equal(lists.calls(), 2, 'a scan or a connection detects again');
+});
+
+test('one aberrant reading does not switch to another sensor', () => {
+  // The next detection would rank NVMe first: coretemp's reading was dropped.
+  const lists = sensorLists([[CORETEMP, NVME], [NVME]]);
+  const resolver = createTemperatureSensorResolver({ ...lists, maxFailures: 3 });
+
+  assert.equal(resolver.resolve({}), CORETEMP.path);
+  resolver.recordReading(CORETEMP.path, null);
+  assert.equal(resolver.resolve({}), CORETEMP.path);
+  resolver.recordReading(CORETEMP.path, 54);
+  resolver.recordReading(CORETEMP.path, null);
+  resolver.recordReading(CORETEMP.path, null);
+  assert.equal(resolver.resolve({}), CORETEMP.path, 'failures are counted in a row only');
+  assert.equal(lists.calls(), 1);
+});
+
+test('a sensor failing several reads in a row is detected again', () => {
+  const lists = sensorLists([[CORETEMP, NVME], [NVME]]);
+  const resolver = createTemperatureSensorResolver({ ...lists, maxFailures: 3 });
+
+  resolver.resolve({});
+  for (let i = 0; i < 3; i += 1) {
+    resolver.recordReading(CORETEMP.path, null);
+  }
+  assert.equal(resolver.resolve({}), NVME.path);
+  assert.equal(lists.calls(), 2);
+});
+
+test('a configured path wins over the remembered sensor', () => {
+  const resolver = createTemperatureSensorResolver(sensorLists([[CORETEMP]]));
+  resolver.resolve({});
+  assert.equal(resolver.resolve({ temperature_sensor_path: '/my/sensor' }), '/my/sensor');
+});
+
+test('the collector reads the remembered sensor only, and a bad reading is no value', async () => {
+  const lists = sensorLists([[CORETEMP, NVME], [NVME]]);
+  const sensorResolver = createTemperatureSensorResolver(lists);
+  const temperatures = [55, null, 56];
+  const readPaths = [];
+  const collector = createMetricsCollector({
+    cpuReader: { read: async () => 10, reset() {} },
+    readMemoryFn: async () => ({ usedPercent: 50, totalBytes: 1 }),
+    readDiskFn: async () => ({ usedPercent: 10, freeBytes: 1, totalBytes: 2 }),
+    readTemperatureFn: async (path) => {
+      readPaths.push(path);
+      return temperatures[readPaths.length - 1];
+    },
+    sensorResolver,
+  });
+
+  const values = [];
+  for (let i = 0; i < 3; i += 1) {
+    values.push((await collector.read({ disk_path: '/data' })).temperature);
+  }
+
+  assert.deepEqual(values, [55, null, 56]);
+  assert.deepEqual(readPaths, [CORETEMP.path, CORETEMP.path, CORETEMP.path]);
+  assert.equal(lists.calls(), 1);
+});
+
+// --- Timeouts ----------------------------------------------------------------
+
+test('a hung disk read times out without holding back the other metrics', async () => {
+  let statfsCalls = 0;
+  const collector = createMetricsCollector({
+    cpuReader: { read: async () => 12, reset() {}, lastWindowMs: () => 300_000 },
+    readMemoryFn: async () => ({ usedPercent: 40, totalBytes: 1 }),
+    // A statfs on a dead NFS mount: never settles.
+    readDiskFn: () => {
+      statfsCalls += 1;
+      return new Promise(() => {});
+    },
+    readTemperatureFn: async () => 50,
+    sensorResolver: createTemperatureSensorResolver({ listSensorsFn: () => [CORETEMP] }),
+    timeoutMs: 20,
+  });
+
+  const first = await collector.read({ disk_path: '/data' });
+  assert.equal(first.diskPercent, null);
+  assert.equal(first.diskFreeGib, null);
+  assert.equal(first.cpuPercent, 12);
+  assert.equal(first.cpuWindowMs, 300_000);
+  assert.equal(first.memoryPercent, 40);
+  assert.equal(first.temperature, 50);
+
+  await collector.read({ disk_path: '/data' });
+  assert.equal(statfsCalls, 1, 'a read still stuck is waited on, not started again');
 });

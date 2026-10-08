@@ -74,21 +74,30 @@ export function computeUsage(previous, current) {
 /**
  * Build a stateful CPU reader. It remembers the previous snapshot, so each
  * read returns the average usage since the previous one.
- * @param {{path?: string, readFileFn?: Function, sleep?: Function, firstReadWindowMs?: number}} options - Injectable dependencies, for tests.
- * @returns {{read: () => Promise<number | null>, reset: () => void}} The reader.
+ *
+ * It also tells how long that window was (`lastWindowMs()`): a usage averaged
+ * over one second is a spike, not a load, and must not raise a threshold alert
+ * (see hostMonitor.js).
+ * @param {{path?: string, readFileFn?: Function, sleep?: Function, firstReadWindowMs?: number, now?: Function}} options - Injectable dependencies, for tests.
+ * @returns {{read: () => Promise<number | null>, reset: () => void, lastWindowMs: () => number | null}} The reader.
  */
 export function createCpuReader({
   path = PROC_STAT_PATH,
   readFileFn = readFile,
   sleep = delay,
   firstReadWindowMs = FIRST_READ_WINDOW_MS,
+  now = Date.now,
 } = {}) {
   let previous = null;
+  let previousAt = null;
+  let windowMs = null;
 
   return {
     async read() {
       const current = parseCpuTimes(await readFileFn(path, 'utf8'));
+      const currentAt = now();
       if (current === null) {
+        windowMs = null;
         return null;
       }
       if (previous === null) {
@@ -96,16 +105,27 @@ export function createCpuReader({
         // shows a value instead of an empty sensor.
         await sleep(firstReadWindowMs);
         const second = parseCpuTimes(await readFileFn(path, 'utf8'));
+        const secondAt = now();
         previous = second ?? current;
+        previousAt = second === null ? currentAt : secondAt;
+        windowMs = secondAt - currentAt;
         return computeUsage(current, second);
       }
       const usage = computeUsage(previous, current);
+      windowMs = currentAt - previousAt;
       previous = current;
+      previousAt = currentAt;
       return usage;
+    },
+
+    lastWindowMs() {
+      return windowMs;
     },
 
     reset() {
       previous = null;
+      previousAt = null;
+      windowMs = null;
     },
   };
 }

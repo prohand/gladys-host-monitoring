@@ -17,28 +17,34 @@
 // -----------------------------------------------------------------------------
 
 import { GladysIntegration, logger } from '@gladysassistant/integration-sdk';
-import { normalizeConfig } from './src/config.js';
 import {
   DEVICE_BLUEPRINTS,
   buildDiscoveredDevices,
   findBlueprintByDevice,
-  findOutdatedDevices,
   refreshDeviceNow,
-  resetThrottles,
 } from './src/devices/index.js';
+import { createLifecycle } from './src/lifecycle.js';
 
 const gladys = new GladysIntegration();
 
-// Current configuration (hot-reloaded via onConfigUpdated).
-let config = normalizeConfig();
+// Configuration, refresh loops and (re)connection sequence: see src/lifecycle.js.
+const lifecycle = createLifecycle(gladys);
 
-// Cleanup functions of the running refresh loops.
-let pushCleanups = [];
+// Last-resort net for a promise rejection nobody handled (a fire-and-forget
+// SDK call, a timer callback). Node's default is to kill the process, which
+// would stop the supervision of the host for a glitch the next refresh does
+// not even notice. Log it so it gets fixed, keep running. Deliberately no
+// `uncaughtException` counterpart: a synchronous throw leaves the process in
+// an unknown state, and the supervisor restarting the container is the right
+// answer to that.
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled promise rejection', reason);
+});
 
 // --- Discovery: Gladys asks for the list of devices --------------------------
 gladys.onScanRequest(async () => {
   logger.info('onScanRequest -> publishing the host device');
-  await gladys.publishDiscoveredDevices(buildDiscoveredDevices(gladys, config));
+  await gladys.publishDiscoveredDevices(buildDiscoveredDevices(gladys, lifecycle.config));
 });
 
 // --- Polling: Gladys asks to refresh a device --------------------------------
@@ -53,7 +59,7 @@ gladys.onPoll(async (device) => {
     logger.debug(`onPoll ignored (self-scheduled device) for ${device.external_id}`);
     return;
   }
-  await blueprint.onPoll(gladys, config);
+  await blueprint.onPoll(gladys, lifecycle.config);
 });
 
 // --- The user added (or edited) one of our devices ---------------------------
@@ -69,14 +75,14 @@ gladys.onPoll(async (device) => {
 // `max_interval_minutes` later. Forcing a full snapshot here closes that gap.
 gladys.onDeviceCreated(async (device) => {
   logger.info(`onDeviceCreated (${device.external_id}) -> publishing a full snapshot`);
-  await refreshDeviceNow(gladys, device, config);
+  await refreshDeviceNow(gladys, device, lifecycle.config);
 });
 
 // Same treatment on update: the user may have edited the device features, so
 // what we believe Gladys holds is stale again.
 gladys.onDeviceUpdated(async (device) => {
   logger.info(`onDeviceUpdated (${device.external_id}) -> publishing a full snapshot`);
-  await refreshDeviceNow(gladys, device, config);
+  await refreshDeviceNow(gladys, device, lifecycle.config);
 });
 
 // --- Manifest actions: buttons in the Configuration screen -------------------
@@ -85,7 +91,7 @@ gladys.onDeviceUpdated(async (device) => {
 // ack is awaited under the action's `timeout_seconds`, not the usual 5 s).
 for (const blueprint of DEVICE_BLUEPRINTS) {
   for (const [actionKey, handler] of Object.entries(blueprint.actions ?? {})) {
-    gladys.onAction(actionKey, (fields) => handler(gladys, { fields, config }));
+    gladys.onAction(actionKey, (fields) => handler(gladys, { fields, config: lifecycle.config }));
   }
 }
 
@@ -95,7 +101,9 @@ for (const blueprint of DEVICE_BLUEPRINTS) {
 // action `outputs`. Throwing fails this action only, the scene goes on.
 for (const blueprint of DEVICE_BLUEPRINTS) {
   for (const [actionKey, handler] of Object.entries(blueprint.sceneActions ?? {})) {
-    gladys.onSceneAction(actionKey, (fields) => handler(gladys, { fields, config }));
+    gladys.onSceneAction(actionKey, (fields) =>
+      handler(gladys, { fields, config: lifecycle.config }),
+    );
   }
 }
 
@@ -105,11 +113,11 @@ for (const blueprint of DEVICE_BLUEPRINTS) {
 for (const blueprint of DEVICE_BLUEPRINTS) {
   for (const [widgetKey, widget] of Object.entries(blueprint.widgets ?? {})) {
     gladys.onWidgetGet(widgetKey, ({ settings, language, units }) =>
-      widget.get(gladys, { settings, language, units, config }),
+      widget.get(gladys, { settings, language, units, config: lifecycle.config }),
     );
     if (typeof widget.action === 'function') {
       gladys.onWidgetAction(widgetKey, (actionKey, params, { settings }) =>
-        widget.action(gladys, actionKey, params, { settings, config }),
+        widget.action(gladys, actionKey, params, { settings, config: lifecycle.config }),
       );
     }
   }
@@ -118,130 +126,25 @@ for (const blueprint of DEVICE_BLUEPRINTS) {
 // --- Configuration updated by the user ---------------------------------------
 gladys.onConfigUpdated(async (newConfig) => {
   logger.info('onConfigUpdated -> new configuration received');
-  config = normalizeConfig(newConfig);
-  // Re-publish the device: the name, the history flag and the presence of the
-  // temperature feature all depend on the configuration.
-  //
-  // Careful, this only refreshes the DISCOVERY entry: for a device the user has
-  // already created, the Gladys core re-upserts its params and nothing else, so
-  // the features (and their keep_history flag) keep the shape they had at
-  // creation time. Changing those settings on an existing device means removing
-  // it and adding it again — see findOutdatedDevices().
-  await gladys.publishDiscoveredDevices(buildDiscoveredDevices(gladys, config));
-  // Restart the refresh loops so a new interval takes effect immediately,
-  // instead of at the end of the current (possibly one hour long) tick.
-  restartRefreshLoops();
+  await lifecycle.onConfigUpdated(newConfig);
 });
 
 // --- Connection lifecycle ----------------------------------------------------
 // The SDK itself logs the WebSocket lifecycle (connections, disconnections,
 // reconnection attempts) under the `gladys-sdk` name: no need to log it again
 // here, these handlers only run the integration's own (re)initialization.
-gladys.on('connected', async () => {
-  try {
-    // 1) Fetch the config filled in by the user.
-    config = normalizeConfig(await gladys.getConfig());
-
-    // 2) (Re)publish the device as soon as we are connected.
-    await gladys.publishDiscoveredDevices(buildDiscoveredDevices(gladys, config));
-
-    // 3) Compare what we are about to publish with what the user actually has:
-    // a device created by an older version keeps its original features, and
-    // every state we send for a feature it does not carry is dropped by the
-    // core without a word. Detected here, it becomes a message in the
-    // Configuration screen instead of a device stuck on "no recent value".
-    const outdatedDevices = findOutdatedDevices(gladys, await gladys.getDevices(), config);
-    for (const device of outdatedDevices) {
-      logger.warn(
-        `Device "${device.name}" (${device.deviceExternalId}) does not carry the feature(s) ` +
-          `${device.missingFeatures.join(', ')}: their values will be ignored by Gladys. ` +
-          'Remove the device in Gladys and add it again from the Discovery screen.',
-      );
-    }
-
-    // 4) Start the refresh loop. It publishes a first snapshot immediately:
-    // whatever we held back while disconnected is republished.
-    restartRefreshLoops();
-
-    // 5) Report the application-level status, shown in the Configuration
-    // screen. Distinct from the container state machine: an integration can be
-    // RUNNING and still unable to read what it supervises.
-    if (outdatedDevices.length > 0) {
-      await gladys.setConnectionStatus(false, outdatedDevicesMessage(outdatedDevices));
-    } else {
-      await gladys.setConnectionStatus(true);
-    }
-  } catch (err) {
-    logger.error('Post-connection initialization failed', err);
-    await gladys
-      .setConnectionStatus(false, {
-        en: 'Initialization failed, check the integration logs.',
-        fr: "L'initialisation a échoué, consultez les logs de l'intégration.",
-      })
-      .catch(() => {});
-  }
-});
+gladys.on('connected', () => lifecycle.onConnected());
 
 gladys.on('disconnected', () => {
-  stopRefreshLoops();
+  lifecycle.stopRefreshLoops();
 });
-
-/**
- * Turn the outdated devices into the message shown in the Configuration
- * screen. It names the culprit and gives the only fix: the core never updates
- * the features of a device already created, so it has to be created again.
- * @param {{name: string, missingFeatures: string[]}[]} devices - Outdated devices.
- * @returns {{en: string, fr: string}} The message.
- */
-function outdatedDevicesMessage(devices) {
-  const names = devices.map((device) => `"${device.name}"`).join(', ');
-  return {
-    en:
-      `${names}: this device was created with an older version of the integration and no longer ` +
-      'carries the features published today, so its values are ignored. Remove it in Gladys, ' +
-      'then add it again from the Discovery screen.',
-    fr:
-      `${names} : cet appareil a été créé avec une version plus ancienne de l'intégration et ne ` +
-      "porte plus les fonctionnalités publiées aujourd'hui, ses valeurs sont donc ignorées. " +
-      "Supprimez-le dans Gladys, puis rajoutez-le depuis l'écran Découverte.",
-  };
-}
-
-/**
- * Stop the running refresh loops, then start them again with the current
- * configuration. The throttle is cleared first so the restart publishes a full
- * snapshot rather than silently skipping unchanged metrics.
- * @returns {void}
- */
-function restartRefreshLoops() {
-  stopRefreshLoops();
-  resetThrottles();
-  pushCleanups = DEVICE_BLUEPRINTS.filter(
-    (blueprint) => typeof blueprint.startPush === 'function',
-  ).map((blueprint) => blueprint.startPush(gladys, config));
-}
-
-/**
- * Stop every running refresh loop.
- * @returns {void}
- */
-function stopRefreshLoops() {
-  for (const cleanup of pushCleanups) {
-    try {
-      cleanup?.();
-    } catch (err) {
-      logger.error('Refresh loop cleanup failed', err);
-    }
-  }
-  pushCleanups = [];
-}
 
 // --- Graceful shutdown -------------------------------------------------------
 // The SDK disconnects cleanly and exits with code 0 when the supervisor stops
 // the container (SIGTERM/SIGINT).
 gladys.handleShutdown((signal) => {
   logger.info(`Received ${signal} -> graceful shutdown`);
-  stopRefreshLoops();
+  lifecycle.stopRefreshLoops();
 });
 
 // --- Startup -----------------------------------------------------------------
