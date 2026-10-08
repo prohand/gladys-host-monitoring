@@ -45,7 +45,9 @@ reads them on its own.
 Four layers, each ignorant of the one above it:
 
 - **`index.js`** — SDK wiring only, no measurement logic. Registers every handler _before_
-  `connect()`, hot-reloads config via `onConfigUpdated`, owns the start/stop of the refresh loops.
+  `connect()`, hot-reloads config via `onConfigUpdated`. The connect/config sequence itself lives in
+  `src/lifecycle.js` (testable): it arms the refresh loops BEFORE talking to Gladys, so a failed
+  publish or `getDevices` never leaves the metrics stopped.
 - **`src/devices/`** — `index.js` is a registry over an array of _blueprints_; `hostMonitor.js` is the
   only blueprint today. A blueprint exposes `key`, `deviceExternalId(gladys)`,
   `buildDevice(gladys, config)` and optionally `startPush`, `refreshNow`, `resetThrottle`, `actions`,
