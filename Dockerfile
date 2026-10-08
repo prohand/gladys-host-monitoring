@@ -13,7 +13,7 @@
 # entries are world-readable — so the unprivileged `node` user is enough.
 # -----------------------------------------------------------------------------
 
-FROM node:26-alpine
+FROM node:24-alpine
 
 # dumb-init: handles signals (SIGTERM) correctly for a graceful shutdown.
 RUN apk add --no-cache dumb-init
