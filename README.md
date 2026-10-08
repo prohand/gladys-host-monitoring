@@ -100,12 +100,16 @@ so they add no reading and no history row of their own.
   same `evaluate()` (pure) / `commit()` split as the throttle means an event
   Gladys refused is fired again at the next refresh instead of being lost.
   Alerts are evaluated on the raw readings, before the throttle: a held-back
-  state still raises its alert. The event carries a ready-made French
+  state still raises its alert — except a CPU usage averaged over less than
+  10 s (the first read after a start), which is a spike, not a load. The
+  alert state lives in memory: after a restart, an alert still active is
+  raised again on the first reading. The event carries a ready-made French
   `message` so the usual "notify me" scene needs no template.
 - **Scene action `read_metrics`** — reads now and returns the metrics as
   outputs (`null` when unavailable, never a fake 0). It goes through the
   throttle: a scene running every minute must not write a row per metric each
-  time.
+  time. Like the buttons, it reuses a snapshot younger than 10 s instead of
+  reading `/proc/stat` again, which would shorten the CPU window of the loop.
 
 Declaring any of them forces `gladys_version` to start at **5.1.0**, the first
 core accepting these manifest fields — pinned by `test/manifest.test.js`, which
@@ -126,14 +130,15 @@ SDK's own `validateWidgetContent`; run the integration with
 │  │  └─ hostMonitor.js              #   the host device: features, refresh loop, actions,
 │  │                                 #   widget, scene trigger and scene action
 │  ├─ metrics/
-│  │  ├─ index.js                    #   collector: one call, one snapshot
+│  │  ├─ index.js                    #   collector: one call, one snapshot, 5 s per metric
 │  │  ├─ cpu.js                      #   /proc/stat, delta between two snapshots
 │  │  ├─ memory.js                   #   /proc/meminfo, MemAvailable based
 │  │  ├─ disk.js                     #   statfs(), df-compatible percentage
-│  │  └─ temperature.js              #   sysfs sensor detection + read
+│  │  └─ temperature.js              #   sysfs sensor detection (remembered) + read
 │  ├─ publish/
 │  │  ├─ throttle.js                 #   deadband + heartbeat: what reaches the database
 │  │  └─ alerts.js                   #   threshold alerts: one scene event per transition
+│  ├─ lifecycle.js                   # (re)connection sequence: refresh loops armed first
 │  └─ config.js                      # config defaults, normalization and clamping
 ├─ docs/{en,fr}.md                   # user documentation (re-hosted by Gladys)
 ├─ gladys-assistant-integration.json # manifest (name, config schema, image…)
