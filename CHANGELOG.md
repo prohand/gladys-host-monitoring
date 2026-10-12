@@ -6,6 +6,8 @@ All notable changes to this integration are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.2.2] - 2026-10-12
+
 ### Changed
 
 - `@gladysassistant/integration-sdk` updated to 0.15.0.
@@ -108,7 +110,8 @@ First public release.
 - Détecter les appareils créés avec d'anciennes fonctionnalités
 - Publier un instantané complet quand l'appareil est créé
 
-[Unreleased]: https://github.com/prohand/gladys-host-monitoring/compare/v2.2.1...HEAD
+[Unreleased]: https://github.com/prohand/gladys-host-monitoring/compare/v2.2.2...HEAD
+[2.2.2]: https://github.com/prohand/gladys-host-monitoring/compare/v2.2.1...v2.2.2
 [2.2.1]: https://github.com/prohand/gladys-host-monitoring/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/prohand/gladys-host-monitoring/compare/v2.1.1...v2.2.0
 [2.1.1]: https://github.com/prohand/gladys-host-monitoring/compare/v2.1.0...v2.1.1
