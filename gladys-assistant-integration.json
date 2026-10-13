@@ -54,7 +54,7 @@
       "description": {
         "en": "Name of the device created in Gladys. Useful when several machines are monitored.",
         "fr": "Nom de l'appareil créé dans Gladys. Utile si vous supervisez plusieurs machines.",
-        "de": "Name des in Gladys erstellten Geräts. Nützlich, wenn Sie mehrere Rechner überwachen.",
+        "de": "Name des in Gladys erstellten Geräts. Nützlich, wenn du mehrere Rechner überwachst.",
         "es": "Nombre del dispositivo creado en Gladys. Útil si supervisa varias máquinas."
       },
       "required": false,
@@ -78,7 +78,7 @@
       "description": {
         "en": "Path whose filesystem is measured. The default /data is the integration volume, hosted on the same filesystem as your Gladys data.",
         "fr": "Chemin dont le système de fichiers est mesuré. La valeur /data par défaut est le volume de l'intégration, situé sur le même système de fichiers que vos données Gladys.",
-        "de": "Pfad, dessen Dateisystem gemessen wird. Der Standardwert /data ist das Volume der Integration, das auf demselben Dateisystem liegt wie Ihre Gladys-Daten.",
+        "de": "Pfad, dessen Dateisystem gemessen wird. Der Standardwert /data ist das Volume der Integration, das auf demselben Dateisystem liegt wie deine Gladys-Daten.",
         "es": "Ruta cuyo sistema de archivos se mide. El valor predeterminado /data es el volumen de la integración, alojado en el mismo sistema de archivos que sus datos de Gladys."
       },
       "required": false,
@@ -222,7 +222,7 @@
       "description": {
         "en": "Applied when the device is created. Turn it off to keep only the live values, with no history row at all.",
         "fr": "Appliqué à la création de l'appareil. Désactivez-le pour ne garder que les valeurs instantanées, sans aucune ligne d'historique.",
-        "de": "Wird beim Erstellen des Geräts angewendet. Deaktivieren Sie die Option, um nur die aktuellen Werte zu behalten, ganz ohne Verlaufszeilen.",
+        "de": "Wird beim Erstellen des Geräts angewendet. Deaktiviere die Option, um nur die aktuellen Werte zu behalten, ganz ohne Verlaufszeilen.",
         "es": "Se aplica al crear el dispositivo. Desactívelo para conservar solo los valores en tiempo real, sin ninguna fila de historial."
       },
       "required": false,
@@ -240,7 +240,7 @@
       "description": {
         "en": "When a metric reaches its threshold, the integration fires the \"Host metric alert\" scene trigger once, and once more when the metric comes back down. Use it to be notified of a full disk or an overheating CPU. Set a threshold to 0 to disable that alert.",
         "fr": "Quand une mesure atteint son seuil, l'intégration déclenche une fois le déclencheur de scène « Alerte sur une mesure de l'hôte », puis une fois encore quand la mesure redescend. Idéal pour être prévenu d'un disque plein ou d'un CPU qui chauffe. Mettez un seuil à 0 pour désactiver cette alerte.",
-        "de": "Erreicht eine Metrik ihren Schwellenwert, löst die Integration den Szenen-Auslöser „Alarm für eine Host-Metrik“ einmal aus und ein weiteres Mal, wenn die Metrik wieder sinkt. Ideal, um über eine volle Festplatte oder eine überhitzte CPU informiert zu werden. Setzen Sie einen Schwellenwert auf 0, um diesen Alarm zu deaktivieren.",
+        "de": "Erreicht eine Metrik ihren Schwellenwert, löst die Integration den Szenen-Auslöser „Alarm für eine Host-Metrik“ einmal aus und ein weiteres Mal, wenn die Metrik wieder sinkt. Ideal, um über eine volle Festplatte oder eine überhitzte CPU informiert zu werden. Setze einen Schwellenwert auf 0, um diesen Alarm zu deaktivieren.",
         "es": "Cuando una métrica alcanza su umbral, la integración activa una vez el desencadenador de escena «Alerta de una métrica del host», y otra vez cuando la métrica vuelve a bajar. Úselo para recibir un aviso de un disco lleno o de una CPU que se sobrecalienta. Ponga un umbral a 0 para desactivar esa alerta."
       }
     },

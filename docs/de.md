@@ -12,19 +12,18 @@ auf dem Gladys läuft, mit fünf Sensoren:
 | CPU-Temperatur            | °C      | `/sys/class/thermal` oder `hwmon`   |
 
 Alles wird **lokal** auf dem Rechner gelesen: kein Agent zu installieren, kein
-Cloud-Dienst, keine Daten, die Ihr Zuhause verlassen.
+Cloud-Dienst, keine Daten, die dein Zuhause verlassen.
 
 ## Installation
 
 Erfordert **Gladys 5.1 oder neuer**. Auf einer älteren Version erscheint die
-Integration einfach nicht im Katalog: Aktualisieren Sie zuerst Gladys.
+Integration einfach nicht im Katalog: Aktualisiere zuerst Gladys.
 
-1. Installieren Sie die Integration aus dem Gladys-Katalog (Kategorie
+1. Installiere die Integration aus dem Gladys-Katalog (Kategorie
    **Dienste**).
-2. Öffnen Sie den Tab **Konfiguration** und speichern Sie (die Standardwerte
+2. Öffne den Tab **Konfiguration** und speichere (die Standardwerte
    passen für die allermeisten Installationen).
-3. Gehen Sie zum Tab **Entdecken**: Das Gerät „Machine hôte“ erscheint, klicken
-   Sie auf **Zu Gladys hinzufügen**.
+3. Geh zum Tab **Entdecken**: Das Gerät „Machine hôte“ erscheint, klicke auf **Zu Gladys hinzufügen**.
 
 Die ersten Werte werden innerhalb weniger Sekunden veröffentlicht, danach alle
 5 Minuten.
@@ -38,7 +37,7 @@ veröffentlicht, schreibt rund **5 Millionen Zeilen pro Jahr**, von denen die
 allermeisten nur den vorherigen Wert wiederholen. Auf einem Raspberry Pi mit
 SD-Karte kostet das sowohl Platz als auch Schreibzyklen.
 
-Drei Schutzmechanismen, alle im Konfigurationsbildschirm einstellbar:
+Drei Schutzmechanismen, alle im Tab **Konfiguration** einstellbar:
 
 - **Aktualisierungsintervall** (standardmäßig 300 s, mindestens 60 s) — wie oft
   die Metriken gelesen werden. Die Integration verwendet ihren eigenen Timer:
@@ -48,7 +47,7 @@ Drei Schutzmechanismen, alle im Konfigurationsbildschirm einstellbar:
   nur veröffentlicht, wenn er sich seit dem **zuletzt veröffentlichten Wert** um
   mindestens so viel verändert hat. Eine langsame Drift überschreitet die
   Schwelle daher immer irgendwann, während das Grundrauschen die Datenbank nicht
-  mehr füllt. Setzen Sie den Wert auf 0, um alles zu veröffentlichen.
+  mehr füllt. Setze den Wert auf 0, um alles zu veröffentlichen.
 - **Maximales Intervall ohne Messpunkt** (standardmäßig 60 min) — auch wenn sich
   nichts ändert, wird jeder Sensor mindestens einmal pro Stunde veröffentlicht,
   damit die Diagramme eine durchgehende Linie behalten.
@@ -58,10 +57,9 @@ Mit den Standardeinstellungen schreibt ein ruhiger Rechner typischerweise
 
 Der Schalter **Verlauf speichern** geht noch einen Schritt weiter: Ist er
 ausgeschaltet, zeigen die Sensoren weiterhin ihren aktuellen Wert, schreiben
-aber überhaupt keine Verlaufszeile. Beachten Sie, dass diese Einstellung **beim
-Erstellen des Geräts** angewendet wird; wenn das Gerät bereits existiert, ändern
-Sie sie direkt auf der Geräteseite in Gladys (dort hat jede Funktion ihr eigenes
-Kontrollkästchen „Verlauf speichern“).
+aber überhaupt keine Verlaufszeile. Beachte, dass diese Einstellung **beim
+Erstellen des Geräts** angewendet wird; wenn das Gerät bereits existiert, änderst du sie direkt auf der Geräteseite in Gladys (dort hat jede Funktion ihr eigenes
+Option **Statusverlauf speichern?**).
 
 ## Speicherplatz: Welche Festplatte wird gemessen?
 
@@ -71,10 +69,10 @@ Gladys vom Host einbindet: Gemessen wird die **Festplatte (Partition) des Hosts,
 auf der dieses Volume liegt** — bei einer Standardinstallation die Festplatte,
 auf der Docker und Gladys ihre Daten ablegen, also genau der freie Speicherplatz,
 der in der Praxis zählt. Wenn Docker seine Volumes auf einer anderen Festplatte
-speichert als der, die Sie interessiert, sind die Zahlen die der Festplatte, auf
+speichert als der, die dich interessiert, sind die Zahlen die der Festplatte, auf
 der das Volume liegt.
 
-Um einen anderen Einhängepunkt zu überwachen, tragen Sie seinen Pfad unter
+Um einen anderen Einhängepunkt zu überwachen, trage seinen Pfad unter
 **Zu überwachender Festplattenpfad** ein — sofern er aus dem Container heraus
 sichtbar ist.
 
@@ -98,7 +96,7 @@ Rechners**. Zwei Konstellationen bilden eine Ausnahme:
   sein Speicherlimit), nicht die des physischen Hosts.
 - **Docker Desktop** (macOS, Windows): Container laufen in einer virtuellen
   Linux-Maschine, die Zahlen sind also die **dieser VM** (die Docker Desktop
-  zugewiesenen CPUs und der zugewiesene Arbeitsspeicher), nicht die Ihres
+  zugewiesenen CPUs und der zugewiesene Arbeitsspeicher), nicht die deines
   Computers.
 
 In beiden Fällen ist die Festplatte weiterhin die, auf der das `/data`-Volume
@@ -111,7 +109,7 @@ Der Sensor wird unter denen, die der Kernel unter `/sys/class/thermal`
 `k10temp` bei AMD…) bereitstellt, **automatisch erkannt**. Sensoren, deren Name
 eindeutig die CPU bezeichnet, werden bevorzugt.
 
-Wenn Ihr Rechner überhaupt keinen Sensor bereitstellt (virtuelle Maschine,
+Wenn dein Rechner überhaupt keinen Sensor bereitstellt (virtuelle Maschine,
 LXC-Container, Nicht-Linux-Host), wird die Temperaturfunktion **einfach nicht
 erstellt**: Die anderen vier funktionieren weiter.
 
@@ -121,9 +119,9 @@ unplausible Messung lässt die Temperatur für diese Messung leer, statt zu eine
 anderen Sensor zu wechseln. Erst nach drei fehlgeschlagenen Messungen in Folge
 wird der Sensor erneut erkannt.
 
-Wenn der gewählte Sensor nicht der richtige ist, verwenden Sie die Schaltfläche
+Wenn der gewählte Sensor nicht der richtige ist, verwende die Schaltfläche
 **Temperatursensoren auflisten**: Sie zeigt jeden sichtbaren Sensor mit seinem
-aktuellen Messwert an und markiert den verwendeten mit einem `>`. Kopieren Sie
+aktuellen Messwert an und markiert den verwendeten mit einem `>`. Kopiere
 den gewünschten Pfad in **CPU-Temperatursensor**.
 
 ## Verfügbare Aktionen
@@ -137,7 +135,7 @@ den gewünschten Pfad in **CPU-Temperatursensor**.
 
 ## Dashboard-Widget
 
-Fügen Sie das Widget **Host-Zustand** zu einem Dashboard hinzu (Widget-Liste,
+Füge das Widget **Host-Zustand** zu einem Dashboard hinzu (**Dashboard → Bearbeiten → Neues Widget**,
 Abschnitt **Integrations-Widgets**). Es zeigt:
 
 - drei Anzeigen in Prozent: CPU, Arbeitsspeicher, Festplatte;
@@ -162,7 +160,7 @@ jeder Messung der Integration.
 
 ### Auslöser „Alarm für eine Host-Metrik“
 
-Die Integration überwacht vier Schwellenwerte, die im Konfigurationsbildschirm
+Die Integration überwacht vier Schwellenwerte, die im Tab **Konfiguration**
 festgelegt werden (Abschnitt **Alarme für Szenen**):
 
 | Schwellenwert   | Standard |
@@ -172,15 +170,15 @@ festgelegt werden (Abschnitt **Alarme für Szenen**):
 | Festplatte      | 90 %     |
 | CPU-Temperatur  | 80 °C    |
 
-Setzen Sie einen Schwellenwert auf **0**, um diesen Alarm zu deaktivieren.
+Setze einen Schwellenwert auf **0**, um diesen Alarm zu deaktivieren.
 
 Wenn eine Metrik ihren Schwellenwert **erreicht**, löst der Auslöser **einmal**
 aus („Alarm ausgelöst“). Er löst ein weiteres Mal aus, wenn die Metrik **wieder
 sinkt** („Wieder normal“): 5 Punkte unter dem Schwellenwert bei den
 Prozentwerten, 3 °C bei der Temperatur. Dieser Abstand verhindert, dass eine
-Festplatte, die um 90 % schwankt, Ihre Szenen bei jeder Messung startet.
+Festplatte, die um 90 % schwankt, deine Szenen bei jeder Messung startet.
 
-Im Szenen-Editor können Sie nach **Metriken** (leer lassen für alle) und nach
+Im Szenen-Editor kannst du nach **Metriken** (leer lassen für alle) und nach
 **Ereignis** (ausgelöst, wieder normal oder beides) filtern. Diese Variablen
 stehen den Aktionen der Szene zur Verfügung: `metric`, `metric_label`, `status`,
 `value`, `threshold`, `unit`, `device_name` und `message` — eine fertige
@@ -221,16 +219,16 @@ Aktualisierung: Eine Szene, die oft läuft, füllt die Datenbank nicht.
 
 ## Fehlerbehebung
 
-**Es erscheint kein Wert.** Prüfen Sie, ob das Gerät tatsächlich über den Tab
+**Es erscheint kein Wert.** Prüfe, ob das Gerät tatsächlich über den Tab
 Entdecken hinzugefügt wurde: Solange es nicht erstellt ist, ignoriert Gladys
-veröffentlichte Zustände stillschweigend. Sobald Sie es hinzufügen,
+veröffentlichte Zustände stillschweigend. Sobald du es hinzufügst,
 veröffentlicht die Integration erneut eine vollständige Momentaufnahme — die
 fünf Metriken erscheinen also innerhalb weniger Sekunden, ohne auf die nächste
 Aktualisierung oder den nächsten garantierten Punkt zu warten.
 
 **Das Gerät zeigt „Kein aktueller Wert“.** Diese Kennzeichnung erscheint, wenn
 48 Stunden lang kein Zustand gespeichert wurde — in der Praxis also nie.
-Verwenden Sie die Aktion **Metriken jetzt lesen**: Sie endet mit „N Wert(e)
+Verwende die Aktion **Metriken jetzt lesen**: Sie endet mit „N Wert(e)
 veröffentlicht“. Ist N mindestens 1, veröffentlicht die Integration tatsächlich,
 und das Problem ist die direkt unten beschriebene Zuordnung der Funktionen.
 
@@ -241,25 +239,25 @@ Kennungen erstelltes Gerät behält diese daher, und die für die neuen Kennunge
 veröffentlichten Zustände werden ohne sichtbaren Fehler verworfen (der
 Gladys-Server protokolliert `DeviceFeature "..." not found (or not added to
 Gladys), skipping state update.`). Die Integration erkennt dies beim Start und
-meldet es im Konfigurationsbildschirm. **Die einzige Lösung ist, das Gerät in
+meldet es im Tab **Konfiguration**. **Die einzige Lösung ist, das Gerät in
 Gladys zu entfernen und es dann über den Tab Entdecken erneut hinzuzufügen.**
-So wenden Sie auch eine Änderung der Option **Verlauf speichern** an oder lassen
+So wendest du auch eine Änderung der Option **Verlauf speichern** an oder lässt
 die Temperatur auf einem Gerät erscheinen, das erstellt wurde, bevor der Sensor
 erkannt wurde.
 
-**Die Temperatur fehlt.** Das ist auf einer VM zu erwarten. Verwenden Sie die
+**Die Temperatur fehlt.** Das ist auf einer VM zu erwarten. Verwende die
 Aktion **Temperatursensoren auflisten**, um zu bestätigen, dass der Kernel
 keinen bereitstellt.
 
 **Die Diagramme sehen wie Treppen aus.** Das ist das beabsichtigte Verhalten:
 Zwischen zwei veröffentlichten Punkten hat sich der Wert nicht stärker als die
-Schwelle verändert. Verringern Sie die **Mindeständerung** für mehr Details —
+Schwelle verändert. Verringere die **Mindeständerung** für mehr Details —
 auf Kosten einer größeren Datenbank.
 
 **Die Werte wirken geglättet.** Die veröffentlichte CPU-Auslastung ist der
 **Mittelwert über das Aktualisierungsintervall**, kein Momentwert: Eine Spitze
-von 2 Sekunden in einem 5-Minuten-Fenster bleibt kaum sichtbar. Verkürzen Sie
-das Intervall, wenn Sie kurzen Spitzen nachspüren.
+von 2 Sekunden in einem 5-Minuten-Fenster bleibt kaum sichtbar. Verkürze
+das Intervall, wenn du kurzen Spitzen nachspürst.
 
-Die Integration protokolliert jede Messung. Sehen Sie sich die Protokolle in der
-Gladys-Oberfläche an, mit `LOG_LEVEL=debug` für alle Details.
+Die Integration protokolliert jede Messung. Sieh dir den Tab **Protokolle** der
+Integration an, mit `LOG_LEVEL=debug` für alle Details.

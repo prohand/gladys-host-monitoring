@@ -37,7 +37,7 @@ monitor del sistema que publica 5 métricas cada 30 segundos escribe unos
 anterior. En una Raspberry Pi con tarjeta SD, eso cuesta tanto espacio como
 ciclos de escritura.
 
-Tres salvaguardas, todas ajustables en la pantalla de configuración:
+Tres salvaguardas, todas ajustables en la pestaña **Configuración**:
 
 - **Intervalo de actualización** (300 s por defecto, 60 s como mínimo): la
   frecuencia con la que se leen las métricas. La integración usa su propio
@@ -59,8 +59,8 @@ El interruptor **Conservar historial** va un paso más allá: desactivado, los
 sensores siguen mostrando su valor en tiempo real pero no escriben ninguna fila
 de historial. Tenga en cuenta que este ajuste se aplica **al crear el
 dispositivo**; si el dispositivo ya existe, cámbielo directamente en la página
-del dispositivo en Gladys (allí cada función tiene su propia casilla «Conservar
-historial»).
+del dispositivo en Gladys (allí cada función tiene su propia opción **¿Conservar
+historial de estados?**).
 
 ## Espacio en disco: ¿qué disco se mide?
 
@@ -131,7 +131,7 @@ de la CPU**.
 
 ## Widget del panel
 
-Añada el widget **Estado del host** a un panel (lista de widgets, sección
+Añada el widget **Estado del host** a un panel (**Panel → Editar → Nuevo widget**, sección
 **Widgets de integraciones**). Muestra:
 
 - tres indicadores en porcentaje: CPU, memoria, disco;
@@ -155,8 +155,8 @@ lectura de la integración.
 
 ### Desencadenador «Alerta de una métrica del host»
 
-La integración vigila cuatro umbrales, configurados en la pantalla de
-configuración (sección **Alertas para escenas**):
+La integración vigila cuatro umbrales, configurados en la pestaña
+**Configuración** (sección **Alertas para escenas**):
 
 | Umbral             | Por defecto |
 | ------------------ | ----------- |
@@ -232,8 +232,8 @@ actualiza su entrada en la pestaña Descubrir. Un dispositivo creado con
 identificadores antiguos los conserva, y los estados publicados para los nuevos
 se descartan sin ningún error visible (el servidor de Gladys registra
 `DeviceFeature "..." not found (or not added to Gladys), skipping state
-update.`). La integración lo detecta al arrancar y lo indica en la pantalla de
-configuración. **La única solución es eliminar el dispositivo en Gladys y
+update.`). La integración lo detecta al arrancar y lo indica en la pestaña
+**Configuración**. **La única solución es eliminar el dispositivo en Gladys y
 volver a añadirlo desde la pestaña Descubrir.** Así es también como se aplica un
 cambio de la opción **Conservar historial**, o como aparece la temperatura en un
 dispositivo creado antes de que se detectara el sensor.
@@ -251,5 +251,5 @@ sobre el intervalo de actualización**, no una muestra instantánea: un pico de
 2 segundos dentro de una ventana de 5 minutos apenas se ve. Acorte el intervalo
 si busca picos cortos.
 
-La integración registra cada lectura. Consulte los registros desde la interfaz
-de Gladys, con `LOG_LEVEL=debug` para obtener todo el detalle.
+La integración registra cada lectura. Consulte la pestaña **Registros** de la
+integración, con `LOG_LEVEL=debug` para obtener todo el detalle.

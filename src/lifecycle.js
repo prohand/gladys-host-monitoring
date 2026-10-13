@@ -28,7 +28,7 @@ import {
 const INIT_FAILED_MESSAGE = {
   en: 'Initialization failed, check the integration logs.',
   fr: "L'initialisation a échoué, consultez les logs de l'intégration.",
-  de: 'Die Initialisierung ist fehlgeschlagen, sehen Sie in den Protokollen der Integration nach.',
+  de: 'Die Initialisierung ist fehlgeschlagen, sieh in den Protokollen der Integration nach.',
   es: 'La inicialización ha fallado, consulte los registros de la integración.',
 };
 
@@ -123,7 +123,7 @@ export function createLifecycle(
         logger.warn(
           `Device "${device.name}" (${device.deviceExternalId}) does not carry the feature(s) ` +
             `${device.missingFeatures.join(', ')}: their values will be ignored by Gladys. ` +
-            'Remove the device in Gladys and add it again from the Discovery screen.',
+            'Remove the device in Gladys and add it again from the Discover tab.',
         );
       }
 
@@ -193,7 +193,7 @@ export function outdatedDevicesMessage(devices) {
     en:
       `${names}: this device was created with an older version of the integration and no longer ` +
       'carries the features published today, so its values are ignored. Remove it in Gladys, ' +
-      'then add it again from the Discovery screen.',
+      'then add it again from the Discover tab.',
     fr:
       `${names} : cet appareil a été créé avec une version plus ancienne de l'intégration et ne ` +
       "porte plus les fonctionnalités publiées aujourd'hui, ses valeurs sont donc ignorées. " +
@@ -201,7 +201,7 @@ export function outdatedDevicesMessage(devices) {
     de:
       `${names}: Dieses Gerät wurde mit einer älteren Version der Integration erstellt und besitzt ` +
       'die heute veröffentlichten Funktionen nicht mehr, daher werden seine Werte ignoriert. ' +
-      'Entfernen Sie es in Gladys und fügen Sie es dann über den Tab „Entdecken“ erneut hinzu.',
+      'Entferne es in Gladys und füge es dann über den Tab „Entdecken“ erneut hinzu.',
     es:
       `${names}: este dispositivo se creó con una versión anterior de la integración y ya no ` +
       'tiene las funciones publicadas actualmente, por lo que sus valores se ignoran. ' +
