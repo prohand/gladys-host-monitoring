@@ -188,6 +188,9 @@ test('list_temperature_sensors marks the sensor actually in use', async () => {
   });
   assert.match(message.fr, /> coretemp \(\/hwmon\/hwmon1\/temp1_input\): 55°C/);
   assert.match(message.fr, /^ {2}acpitz/m);
+  for (const language of ['de', 'es']) {
+    assert.match(message[language], /> coretemp \(\/hwmon\/hwmon1\/temp1_input\): 55°C/);
+  }
 });
 
 test('list_temperature_sensors explains an empty result instead of failing', async () => {
@@ -196,7 +199,8 @@ test('list_temperature_sensors explains an empty result instead of failing', asy
     config: normalizeConfig(),
   });
   assert.match(message.en, /No readable temperature sensor/);
-  assert.ok(message.fr.length > 0);
+  assert.deepEqual(Object.keys(message), ['en', 'fr', 'de', 'es']);
+  assert.ok(message.fr.length > 0 && message.de.length > 0 && message.es.length > 0);
 });
 
 // --- Outdated devices --------------------------------------------------------

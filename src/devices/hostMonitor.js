@@ -82,7 +82,7 @@ export const ALERT_METRICS = [
     unit: '%',
     // Points under the threshold before the alert clears (see alerts.js).
     hysteresis: 5,
-    label: { en: 'CPU usage', fr: 'Utilisation CPU' },
+    label: { en: 'CPU usage', fr: 'Utilisation CPU', de: 'CPU-Auslastung', es: 'Uso de CPU' },
   },
   {
     metric: 'memory',
@@ -91,7 +91,12 @@ export const ALERT_METRICS = [
     configKey: 'alert_memory_percent',
     unit: '%',
     hysteresis: 5,
-    label: { en: 'Memory usage', fr: 'Utilisation mémoire' },
+    label: {
+      en: 'Memory usage',
+      fr: 'Utilisation mémoire',
+      de: 'Arbeitsspeicherauslastung',
+      es: 'Uso de memoria',
+    },
   },
   {
     metric: 'disk',
@@ -100,7 +105,12 @@ export const ALERT_METRICS = [
     configKey: 'alert_disk_percent',
     unit: '%',
     hysteresis: 5,
-    label: { en: 'Disk usage', fr: 'Utilisation disque' },
+    label: {
+      en: 'Disk usage',
+      fr: 'Utilisation disque',
+      de: 'Festplattenauslastung',
+      es: 'Uso de disco',
+    },
   },
   {
     metric: 'temperature',
@@ -109,7 +119,12 @@ export const ALERT_METRICS = [
     configKey: 'alert_temperature',
     unit: '°C',
     hysteresis: 3,
-    label: { en: 'CPU temperature', fr: 'Température CPU' },
+    label: {
+      en: 'CPU temperature',
+      fr: 'Température CPU',
+      de: 'CPU-Temperatur',
+      es: 'Temperatura de CPU',
+    },
   },
 ];
 
@@ -536,6 +551,12 @@ export function createHostMonitor({
           fr:
             `CPU ${cpu}, RAM ${ram}, disque ${disk} (${free} Gio libres), température ${temp}` +
             ` — ${publishedCount} état(s) publié(s).`,
+          de:
+            `CPU ${cpu}, RAM ${ram}, Festplatte ${disk} (${free} GiB frei), Temperatur ${temp}` +
+            ` — ${publishedCount} Wert(e) veröffentlicht.`,
+          es:
+            `CPU ${cpu}, RAM ${ram}, disco ${disk} (${free} GiB libres), temperatura ${temp}` +
+            ` — ${publishedCount} estado(s) publicado(s).`,
         };
       },
 
@@ -545,6 +566,8 @@ export function createHostMonitor({
           return {
             en: 'No readable temperature sensor found under /sys/class/thermal or /sys/class/hwmon.',
             fr: 'Aucune sonde de température lisible sous /sys/class/thermal ou /sys/class/hwmon.',
+            de: 'Kein lesbarer Temperatursensor unter /sys/class/thermal oder /sys/class/hwmon gefunden.',
+            es: 'No se ha encontrado ningún sensor de temperatura legible en /sys/class/thermal ni en /sys/class/hwmon.',
           };
         }
         const selected = resolveSensor(config);
@@ -557,6 +580,8 @@ export function createHostMonitor({
         return {
           en: `${sensors.length} sensor(s) found, "> " marks the one in use:\n${lines}`,
           fr: `${sensors.length} sonde(s) trouvée(s), « > » marque celle utilisée :\n${lines}`,
+          de: `${sensors.length} Sensor(en) gefunden, „> “ markiert den verwendeten:\n${lines}`,
+          es: `${sensors.length} sensor(es) encontrado(s), «> » marca el que se utiliza:\n${lines}`,
         };
       },
     },
@@ -602,6 +627,8 @@ export function createHostMonitor({
           return {
             en: `Metrics read, ${publishedCount} state(s) published.`,
             fr: `Métriques lues, ${publishedCount} état(s) publié(s).`,
+            de: `Metriken gelesen, ${publishedCount} Wert(e) veröffentlicht.`,
+            es: `Métricas leídas, ${publishedCount} estado(s) publicado(s).`,
           };
         },
       },
@@ -668,9 +695,9 @@ export function buildSceneOutputs(metrics) {
  */
 export function formatFreeSpace(gib) {
   if (gib >= 1000) {
-    return { value: round(gib / 1024, 1), unit: { en: 'TB', fr: 'To' } };
+    return { value: round(gib / 1024, 1), unit: { en: 'TB', fr: 'To', de: 'TB', es: 'TB' } };
   }
-  return { value: round(gib, gib >= 10 ? 0 : 1), unit: { en: 'GB', fr: 'Go' } };
+  return { value: round(gib, gib >= 10 ? 0 : 1), unit: { en: 'GB', fr: 'Go', de: 'GB', es: 'GB' } };
 }
 
 /**
@@ -699,7 +726,7 @@ export function buildWidgetContent({
 }) {
   const refreshButton = {
     type: 'button',
-    label: { en: 'Read now', fr: 'Lire maintenant' },
+    label: { en: 'Read now', fr: 'Lire maintenant', de: 'Jetzt lesen', es: 'Leer ahora' },
     icon: 'refresh-cw',
     style: 'secondary',
     action: { key: WIDGET_ACTION.REFRESH },
@@ -715,7 +742,12 @@ export function buildWidgetContent({
       components: [
         {
           type: 'text',
-          text: { en: 'First reading in progress…', fr: 'Première mesure en cours…' },
+          text: {
+            en: 'First reading in progress…',
+            fr: 'Première mesure en cours…',
+            de: 'Erste Messung läuft…',
+            es: 'Primera medición en curso…',
+          },
         },
         refreshButton,
       ],
@@ -741,13 +773,13 @@ export function buildWidgetContent({
       key: FEATURE.MEMORY,
       metric: 'memory',
       value: metrics.memoryPercent,
-      label: { en: 'Memory', fr: 'Mémoire' },
+      label: { en: 'Memory', fr: 'Mémoire', de: 'Speicher', es: 'Memoria' },
     },
     {
       key: FEATURE.DISK,
       metric: 'disk',
       value: metrics.diskPercent,
-      label: { en: 'Disk', fr: 'Disque' },
+      label: { en: 'Disk', fr: 'Disque', de: 'Festplatte', es: 'Disco' },
     },
   ];
   // The gauges stay inline even on a created device: the core draws a
@@ -770,7 +802,7 @@ export function buildWidgetContent({
     }
   }
 
-  const temperatureLabel = { en: 'CPU temp.', fr: 'Temp. CPU' };
+  const temperatureLabel = { en: 'CPU temp.', fr: 'Temp. CPU', de: 'CPU-Temp.', es: 'Temp. CPU' };
   if (isBound(FEATURE.TEMPERATURE)) {
     components.push({
       type: 'value',
@@ -796,7 +828,7 @@ export function buildWidgetContent({
   if (Number.isFinite(metrics.diskFreeGib)) {
     components.push({
       type: 'value',
-      label: { en: 'Free disk', fr: 'Disque libre' },
+      label: { en: 'Free disk', fr: 'Disque libre', de: 'Freier Speicher', es: 'Disco libre' },
       icon: 'hard-drive',
       ...formatFreeSpace(metrics.diskFreeGib),
     });
@@ -819,8 +851,13 @@ export function buildWidgetContent({
       type: 'chart',
       chart_type: 'line',
       title: mixedUnits
-        ? { en: 'History', fr: 'Historique' }
-        : { en: 'Usage history', fr: "Historique d'utilisation" },
+        ? { en: 'History', fr: 'Historique', de: 'Verlauf', es: 'Historial' }
+        : {
+            en: 'Usage history',
+            fr: "Historique d'utilisation",
+            de: 'Auslastungsverlauf',
+            es: 'Historial de uso',
+          },
       ...(mixedUnits ? {} : { unit: '%' }),
       device_features: charted,
       interval,
@@ -839,8 +876,18 @@ export function buildWidgetContent({
     return {
       label: entry.label,
       value: active
-        ? { en: `Alert (≥ ${threshold})`, fr: `Alerte (≥ ${threshold})` }
-        : { en: `OK (< ${threshold})`, fr: `OK (< ${threshold})` },
+        ? {
+            en: `Alert (≥ ${threshold})`,
+            fr: `Alerte (≥ ${threshold})`,
+            de: `Alarm (≥ ${threshold})`,
+            es: `Alerta (≥ ${threshold})`,
+          }
+        : {
+            en: `OK (< ${threshold})`,
+            fr: `OK (< ${threshold})`,
+            de: `OK (< ${threshold})`,
+            es: `OK (< ${threshold})`,
+          },
       icon: active ? 'alert-triangle' : 'check-circle',
       color: active ? WIDGET_COLORS.DANGER : WIDGET_COLORS.SUCCESS,
     };
