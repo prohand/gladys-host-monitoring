@@ -137,6 +137,7 @@ test('section fields are purely presentational', () => {
 
 test('the manifest stays within the store limits', () => {
   assert.ok(manifest.name.length >= 3 && manifest.name.length <= 30);
+  assert.deepEqual(Object.keys(manifest.description), ['en', 'fr', 'de', 'es']);
   for (const [language, text] of Object.entries(manifest.description)) {
     assert.ok(
       text.length >= 10 && text.length <= 100,
@@ -263,4 +264,61 @@ test('the host_health chart setting offers the intervals the code understands', 
     WIDGET_CHART_INTERVALS,
   );
   assert.equal(setting.default, DEFAULT_WIDGET_CHART_INTERVAL);
+});
+
+// --- Languages ---------------------------------------------------------------
+
+// The languages of the Gladys interface: every text a user reads carries all of
+// them (the core falls back on `en` for a missing one, which would show English
+// to a German or Spanish user without anyone noticing).
+const LANGUAGES = ['en', 'fr', 'de', 'es'];
+
+/**
+ * Every multi-language object of the manifest, with its JSON path.
+ * @param {unknown} node - Part of the manifest.
+ * @param {string} path - Path of `node`.
+ * @returns {{path: string, text: Record<string, string>}[]} The texts.
+ */
+function multiLanguageTexts(node, path = '') {
+  if (Array.isArray(node)) {
+    return node.flatMap((item, index) => multiLanguageTexts(item, `${path}[${index}]`));
+  }
+  if (node === null || typeof node !== 'object') {
+    return [];
+  }
+  if (typeof node.en === 'string') {
+    return [{ path, text: node }];
+  }
+  return Object.entries(node).flatMap(([key, value]) =>
+    multiLanguageTexts(value, path ? `${path}.${key}` : key),
+  );
+}
+
+test('every manifest text is written in every Gladys language', () => {
+  const texts = multiLanguageTexts(manifest);
+  assert.ok(texts.length > 50, 'the walk must find the manifest texts');
+  for (const { path, text } of texts) {
+    assert.deepEqual(Object.keys(text), LANGUAGES, `${path} must be { en, fr, de, es }`);
+    for (const language of LANGUAGES) {
+      assert.ok(text[language].trim().length > 0, `${path}.${language} is empty`);
+    }
+  }
+});
+
+test('the widget and section texts stay within the store limits in every language', () => {
+  for (const widget of manifest.widgets) {
+    for (const language of LANGUAGES) {
+      const label = widget.label[language];
+      assert.ok(label.length >= 3 && label.length <= 30, `widget label.${language}: "${label}"`);
+      assert.ok(widget.description[language].length <= 100, `widget description.${language}`);
+    }
+  }
+  for (const section of manifest.config_schema.filter((field) => field.type === 'section')) {
+    for (const language of LANGUAGES) {
+      assert.ok(
+        section.description[language].length <= 1000,
+        `section "${section.key}" description.${language} exceeds 1000 characters`,
+      );
+    }
+  }
 });

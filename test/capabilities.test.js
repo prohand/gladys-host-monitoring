@@ -15,6 +15,7 @@ import {
   formatFreeSpace,
 } from '../src/devices/hostMonitor.js';
 import { normalizeConfig } from '../src/config.js';
+import { outdatedDevicesMessage } from '../src/lifecycle.js';
 import { createFixture, snapshot } from './helpers/hostFixture.js';
 
 /**
@@ -327,4 +328,46 @@ test('each refresh nudges the widget, and its button reads the metrics', async (
   assert.deepEqual(fixture.gladys.widgetRefreshes, [WIDGET.HOST_HEALTH]);
 
   await assert.rejects(() => widget.action(fixture.gladys, 'unknown', {}, { config }));
+});
+
+// --- Languages ---------------------------------------------------------------
+
+/**
+ * Every multi-language object found in a value (widget content, message).
+ * @param {unknown} node - What to walk.
+ * @returns {object[]} The `{ en, … }` objects.
+ */
+function multiLanguageTexts(node) {
+  if (Array.isArray(node)) {
+    return node.flatMap(multiLanguageTexts);
+  }
+  if (node === null || typeof node !== 'object') {
+    return [];
+  }
+  if (typeof node.en === 'string') {
+    return [node];
+  }
+  return Object.values(node).flatMap(multiLanguageTexts);
+}
+
+test('the widget and the messages speak every Gladys language', async () => {
+  const fixture = createFixture({ readings: [snapshot({ diskPercent: 95 })] });
+  const config = normalizeConfig();
+  const widget = fixture.monitor.widgets[WIDGET.HOST_HEALTH];
+
+  const texts = [...multiLanguageTexts(await getWidget(fixture, config))];
+  texts.push(await fixture.monitor.actions.test_metrics(fixture.gladys, { config }));
+  texts.push(...multiLanguageTexts(await getWidget(fixture, config)));
+  createDevice(fixture, config);
+  texts.push(...multiLanguageTexts(await getWidget(fixture, config)));
+  texts.push(await widget.action(fixture.gladys, WIDGET_ACTION.REFRESH, {}, { config }));
+  texts.push(outdatedDevicesMessage([{ name: 'Machine hôte', missingFeatures: [] }]));
+
+  assert.ok(texts.length > 10);
+  for (const text of texts) {
+    assert.deepEqual(Object.keys(text), ['en', 'fr', 'de', 'es'], JSON.stringify(text));
+    for (const language of ['de', 'es']) {
+      assert.ok(text[language].length > 0);
+    }
+  }
 });

@@ -1,0 +1,255 @@
+# Supervisión del host
+
+Esta integración crea **un dispositivo** en Gladys, que representa la máquina en
+la que se ejecuta Gladys, con cinco sensores:
+
+| Sensor                 | Unidad | Origen                            |
+| ---------------------- | ------ | --------------------------------- |
+| Uso de CPU             | %      | `/proc/stat`                      |
+| Uso de memoria         | %      | `/proc/meminfo` (`MemAvailable`)  |
+| Uso de disco           | %      | `statfs()` en la ruta supervisada |
+| Espacio libre en disco | GiB    | `statfs()` en la ruta supervisada |
+| Temperatura de CPU     | °C     | `/sys/class/thermal` o `hwmon`    |
+
+Todo se lee **localmente**, en la máquina: ningún agente que instalar, ningún
+servicio en la nube, ningún dato que salga de su casa.
+
+## Instalación
+
+Requiere **Gladys 5.1 o posterior**. En una versión anterior, la integración
+simplemente no aparece en el catálogo: actualice Gladys primero.
+
+1. Instale la integración desde el catálogo de Gladys (categoría
+   **Servicios**).
+2. Abra la pestaña **Configuración** y guarde (los valores predeterminados
+   sirven para la gran mayoría de instalaciones).
+3. Vaya a la pestaña **Descubrir**: aparece el dispositivo «Machine hôte»;
+   pulse **Añadir a Gladys**.
+
+Los primeros valores se publican en pocos segundos y después cada 5 minutos.
+
+## Frecuencia de actualización y tamaño de la base de datos
+
+Este es el punto que define toda la integración. Gladys **escribe una fila de
+historial por cada valor publicado**: no hay deduplicación en el servidor. Un
+monitor del sistema que publica 5 métricas cada 30 segundos escribe unos
+**5 millones de filas al año**, la inmensa mayoría de ellas repitiendo el valor
+anterior. En una Raspberry Pi con tarjeta SD, eso cuesta tanto espacio como
+ciclos de escritura.
+
+Tres salvaguardas, todas ajustables en la pantalla de configuración:
+
+- **Intervalo de actualización** (300 s por defecto, 60 s como mínimo): la
+  frecuencia con la que se leen las métricas. La integración usa su propio
+  temporizador: no utiliza el planificador de Gladys, que no puede ir más
+  despacio que una lectura por minuto.
+- **Variación mínima** (2 puntos porcentuales / 1 °C por defecto): un valor
+  solo se publica si ha variado al menos esa cantidad desde el **último valor
+  publicado**. Así, una deriva lenta siempre acaba superando el umbral, mientras
+  que el ruido de fondo deja de llenar la base de datos. Póngala a 0 para
+  publicarlo todo.
+- **Intervalo máximo sin punto** (60 min por defecto): aunque nada cambie, cada
+  sensor se publica al menos una vez por hora, para que los gráficos mantengan
+  una línea continua.
+
+Con los ajustes predeterminados, una máquina tranquila suele escribir **unas
+pocas decenas de filas al día** en lugar de decenas de miles.
+
+El interruptor **Conservar historial** va un paso más allá: desactivado, los
+sensores siguen mostrando su valor en tiempo real pero no escriben ninguna fila
+de historial. Tenga en cuenta que este ajuste se aplica **al crear el
+dispositivo**; si el dispositivo ya existe, cámbielo directamente en la página
+del dispositivo en Gladys (allí cada función tiene su propia casilla «Conservar
+historial»).
+
+## Espacio en disco: ¿qué disco se mide?
+
+Un contenedor no ve el sistema de archivos del host, sino el suyo propio. La
+ruta predeterminada `/data` es **el propio volumen `/data` de la integración**,
+que Gladys monta desde el host: lo que se mide es el **disco (partición) del
+host que contiene ese volumen**; en una instalación estándar, el disco donde
+Docker y Gladys guardan sus datos, es decir, el espacio libre que realmente
+importa en la práctica. Si Docker almacena sus volúmenes en un disco distinto
+del que le interesa, las cifras son las del disco que contiene el volumen.
+
+Para supervisar otro punto de montaje, indique su ruta en **Ruta del disco que
+se supervisa**, siempre que sea visible desde dentro del contenedor.
+
+Un disco que no responde en **5 segundos** (por ejemplo, un recurso compartido
+de red bloqueado) se indica como no disponible en esa lectura: la CPU, la
+memoria y la temperatura se publican de todos modos.
+
+El porcentaje se calcula como lo hace `df`: los bloques reservados para root se
+excluyen, de modo que un sistema de archivos ext4 recién formateado muestra 0 %
+y no 5 %.
+
+## CPU y memoria: cuando no son las del host
+
+Docker no aísla `/proc/stat` ni `/proc/meminfo`: en una instalación Linux normal,
+la CPU y la memoria son las de **toda la máquina**. Hay dos excepciones:
+
+- **Gladys dentro de un contenedor LXC** (Proxmox, por ejemplo) con **lxcfs**
+  activado, que es lo predeterminado en Proxmox: lxcfs reescribe esos archivos,
+  así que la CPU y la memoria son las del **contenedor LXC** (su propia carga,
+  su límite de memoria), no las del host físico.
+- **Docker Desktop** (macOS, Windows): los contenedores se ejecutan dentro de
+  una máquina virtual Linux, así que las cifras son las de **esa VM** (las CPU y
+  la memoria asignadas a Docker Desktop), no las de su ordenador.
+
+En ambos casos, el disco sigue siendo el que contiene el volumen `/data`, tal
+como lo ve ese contenedor o esa VM.
+
+## Temperatura de CPU
+
+El sensor se **detecta automáticamente** entre los que el kernel expone en
+`/sys/class/thermal` (Raspberry Pi y placas ARM) y `/sys/class/hwmon`
+(`coretemp` en Intel, `k10temp` en AMD…). Se da preferencia a los sensores cuyo
+nombre designa claramente la CPU.
+
+Si su máquina no expone ningún sensor (máquina virtual, contenedor LXC, host no
+Linux), la función de temperatura **simplemente no se crea**: las otras cuatro
+siguen funcionando.
+
+El sensor se elige al iniciar la integración (y en cada búsqueda o cambio de
+configuración) y después **se conserva**: una lectura aislada inverosímil deja
+la temperatura vacía en esa lectura en lugar de cambiar a otro sensor. Solo tras
+tres lecturas fallidas seguidas se vuelve a detectar el sensor.
+
+Si el sensor elegido no es el correcto, use el botón **Listar los sensores de
+temperatura**: muestra todos los sensores visibles con su lectura actual y marca
+con un `>` el que se utiliza. Copie la ruta que desee en **Sensor de temperatura
+de la CPU**.
+
+## Acciones disponibles
+
+- **Leer las métricas ahora**: lo lee todo de inmediato y muestra el resultado
+  bajo el botón, sin esperar a la próxima actualización. Es la primera prueba
+  que debe hacer cuando un valor parece incorrecto. Si se vuelve a pulsar en
+  menos de 10 segundos, muestra la misma lectura en lugar de medir la CPU sobre
+  solo unos segundos.
+- **Listar los sensores de temperatura**: véase más arriba.
+
+## Widget del panel
+
+Añada el widget **Estado del host** a un panel (lista de widgets, sección
+**Widgets de integraciones**). Muestra:
+
+- tres indicadores en porcentaje: CPU, memoria, disco;
+- la temperatura de la CPU (si existe un sensor) y el espacio libre en disco;
+- un gráfico de historial de CPU / memoria / disco, más la curva de temperatura
+  de la CPU cuando el dispositivo tiene un sensor;
+- el estado de cada alerta (véase más abajo);
+- un botón **Leer ahora**.
+
+El widget tiene un único ajuste, el **periodo del gráfico** (última hora,
+24 horas, semana, mes… o sin gráfico). El gráfico solo aparece una vez que el
+dispositivo se ha añadido y conserva su historial.
+
+Hasta que el dispositivo se añade desde la pestaña Descubrir, el widget muestra
+igualmente la última lectura. Una vez añadido el dispositivo, la temperatura y
+el gráfico se actualizan en tiempo real; los tres indicadores (en porcentajes
+enteros) y el espacio libre (redondeado, p. ej. 432 GB o 1,8 TB) siguen cada
+lectura de la integración.
+
+## Escenas
+
+### Desencadenador «Alerta de una métrica del host»
+
+La integración vigila cuatro umbrales, configurados en la pantalla de
+configuración (sección **Alertas para escenas**):
+
+| Umbral             | Por defecto |
+| ------------------ | ----------- |
+| CPU                | 90 %        |
+| Memoria            | 90 %        |
+| Disco              | 90 %        |
+| Temperatura de CPU | 80 °C       |
+
+Ponga un umbral a **0** para desactivar esa alerta.
+
+Cuando una métrica **alcanza** su umbral, el desencadenador se activa **una
+vez** («Alerta activada»). Se activa otra vez cuando la métrica **vuelve a
+bajar** («Vuelta a la normalidad»): 5 puntos por debajo del umbral para los
+porcentajes, 3 °C para la temperatura. Ese margen evita que un disco que oscila
+en torno al 90 % ejecute sus escenas en cada lectura.
+
+En el editor de escenas puede filtrar por **métricas** (déjelo vacío para todas)
+y por **evento** (activada, vuelta a la normalidad o ambos). Estas variables
+están disponibles para las acciones de la escena: `metric`, `metric_label`,
+`status`, `value`, `threshold`, `unit`, `device_name` y `message`, un mensaje
+listo para enviar, en francés, p. ej. «Machine hôte : Utilisation disque à 92 %
+(seuil 90 %)».
+
+Ejemplo: «cuando el disco alcance su umbral → enviarme un mensaje con
+`message`».
+
+Conviene saber que:
+
+- la alerta se comprueba en **cada lectura**, aunque el valor no se escriba en
+  el historial;
+- el uso de CPU es un **promedio sobre el intervalo de actualización**: un pico
+  de unos segundos no activa nada. La primera lectura tras un arranque solo
+  promedia un segundo, por lo que no activa ninguna alerta de CPU: decide la
+  lectura siguiente;
+- el estado de las alertas **solo se guarda en memoria**. Tras un reinicio de la
+  integración (reinicio de Gladys o del contenedor, actualización), una alerta
+  todavía en curso **se vuelve a activar** en la primera lectura: mejor una
+  notificación repetida que un disco lleno en silencio. A la inversa, una
+  métrica que ha vuelto a bajar mientras la integración estaba detenida no envía
+  ninguna «Vuelta a la normalidad».
+
+### Acción «Leer las métricas del host»
+
+Esta acción lee todas las métricas cuando la escena llega a ella y las pone a
+disposición de las acciones siguientes: `cpu_percent`, `memory_percent`,
+`disk_percent`, `disk_free_gib`, `temperature` y `summary` (un resumen de una
+línea, en francés). Una métrica que no se puede leer queda vacía, nunca a 0.
+
+Ejemplo: «cada lunes a las 9 h → leer las métricas del host → enviarme
+`summary`».
+
+Las lecturas pasan por las mismas salvaguardas que la actualización normal: una
+escena que se ejecuta a menudo no llena la base de datos.
+
+## Solución de problemas
+
+**No aparece ningún valor.** Compruebe que el dispositivo se ha añadido
+realmente desde la pestaña Descubrir: mientras no se cree, Gladys ignora en
+silencio los estados publicados. En cuanto lo añade, la integración vuelve a
+publicar una instantánea completa, de modo que las cinco métricas aparecen en
+pocos segundos, sin esperar a la próxima actualización ni al próximo punto
+garantizado.
+
+**El dispositivo muestra «Sin valor reciente».** Esa indicación aparece cuando
+no se ha registrado ningún estado durante 48 horas, es decir, en la práctica,
+nunca. Use la acción **Leer las métricas ahora**: termina con «N estado(s)
+publicado(s)». Si N es al menos 1, la integración sí publica, y el problema es
+la correspondencia de las funciones descrita justo debajo.
+
+**El dispositivo se creó con una versión anterior.** Gladys nunca actualiza las
+funciones de un dispositivo que ya existe: volver a publicar el dispositivo solo
+actualiza su entrada en la pestaña Descubrir. Un dispositivo creado con
+identificadores antiguos los conserva, y los estados publicados para los nuevos
+se descartan sin ningún error visible (el servidor de Gladys registra
+`DeviceFeature "..." not found (or not added to Gladys), skipping state
+update.`). La integración lo detecta al arrancar y lo indica en la pantalla de
+configuración. **La única solución es eliminar el dispositivo en Gladys y
+volver a añadirlo desde la pestaña Descubrir.** Así es también como se aplica un
+cambio de la opción **Conservar historial**, o como aparece la temperatura en un
+dispositivo creado antes de que se detectara el sensor.
+
+**Falta la temperatura.** Es lo esperado en una VM. Use la acción **Listar los
+sensores de temperatura** para confirmar que el kernel no expone ninguno.
+
+**Los gráficos parecen escaleras.** Es el comportamiento previsto: entre dos
+puntos publicados, el valor no ha variado más que el umbral. Reduzca la
+**variación mínima** para obtener más detalle, a costa de una base de datos más
+grande.
+
+**Los valores parecen suavizados.** El uso de CPU publicado es el **promedio
+sobre el intervalo de actualización**, no una muestra instantánea: un pico de
+2 segundos dentro de una ventana de 5 minutos apenas se ve. Acorte el intervalo
+si busca picos cortos.
+
+La integración registra cada lectura. Consulte los registros desde la interfaz
+de Gladys, con `LOG_LEVEL=debug` para obtener todo el detalle.

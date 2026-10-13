@@ -154,7 +154,10 @@ setIntervalFn, … })`, `readDisk(path, { statfsFn })`, `createStateThrottle({ n
   exists for, and inline comments document Gladys-core behaviour that would otherwise look like
   paranoia. Match that density; JSDoc on every exported function (ESLint config allows `_`-prefixed
   unused args).
-- **User-facing strings are bilingual objects** `{ en, fr }` — action results, connection-status
-  messages, manifest labels/descriptions. Device and feature names shown in Gladys are French.
+- **User-facing strings are multi-language objects** `{ en, fr, de, es }` — action results,
+  connection-status messages, widget texts, manifest labels/descriptions (`test/manifest.test.js`
+  checks the four languages). Device and feature names shown in Gladys, the scene event `message`
+  and the `summary` output are French.
 - Documentation lives in `README.md` (developer-facing, kept current with the design decisions above)
-  and `docs/{en,fr}.md` (user-facing, re-hosted by Gladys); update `docs/` in both languages together.
+  and `docs/en.md`, `docs/fr.md`, `docs/de.md`, `docs/es.md` (user-facing, re-hosted by Gladys),
+  which stay in sync; update `docs/` in all four languages together.

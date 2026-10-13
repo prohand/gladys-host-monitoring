@@ -28,6 +28,8 @@ import {
 const INIT_FAILED_MESSAGE = {
   en: 'Initialization failed, check the integration logs.',
   fr: "L'initialisation a échoué, consultez les logs de l'intégration.",
+  de: 'Die Initialisierung ist fehlgeschlagen, sehen Sie in den Protokollen der Integration nach.',
+  es: 'La inicialización ha fallado, consulte los registros de la integración.',
 };
 
 /**
@@ -183,7 +185,7 @@ export function createLifecycle(
  * screen. It names the culprit and gives the only fix: the core never updates
  * the features of a device already created, so it has to be created again.
  * @param {{name: string, missingFeatures: string[]}[]} devices - Outdated devices.
- * @returns {{en: string, fr: string}} The message.
+ * @returns {{en: string, fr: string, de: string, es: string}} The message.
  */
 export function outdatedDevicesMessage(devices) {
   const names = devices.map((device) => `"${device.name}"`).join(', ');
@@ -196,5 +198,13 @@ export function outdatedDevicesMessage(devices) {
       `${names} : cet appareil a été créé avec une version plus ancienne de l'intégration et ne ` +
       "porte plus les fonctionnalités publiées aujourd'hui, ses valeurs sont donc ignorées. " +
       "Supprimez-le dans Gladys, puis rajoutez-le depuis l'écran Découverte.",
+    de:
+      `${names}: Dieses Gerät wurde mit einer älteren Version der Integration erstellt und besitzt ` +
+      'die heute veröffentlichten Funktionen nicht mehr, daher werden seine Werte ignoriert. ' +
+      'Entfernen Sie es in Gladys und fügen Sie es dann über den Tab „Entdecken“ erneut hinzu.',
+    es:
+      `${names}: este dispositivo se creó con una versión anterior de la integración y ya no ` +
+      'tiene las funciones publicadas actualmente, por lo que sus valores se ignoran. ' +
+      'Elimínelo en Gladys y vuelva a añadirlo desde la pestaña «Descubrir».',
   };
 }

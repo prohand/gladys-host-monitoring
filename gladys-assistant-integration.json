@@ -4,7 +4,9 @@
   "name": "Supervision hôte",
   "description": {
     "en": "Reports the CPU, memory, disk usage and CPU temperature of the machine running Gladys.",
-    "fr": "Remonte l'usage CPU, la mémoire, l'espace disque et la température CPU de la machine hôte."
+    "fr": "Remonte l'usage CPU, la mémoire, l'espace disque et la température CPU de la machine hôte.",
+    "de": "Meldet CPU-, Arbeitsspeicher- und Festplattenauslastung sowie CPU-Temperatur des Gladys-Rechners.",
+    "es": "Informa del uso de CPU, memoria y disco y de la temperatura de CPU de la máquina con Gladys."
   },
   "version": "2.2.2",
   "docker_image": "ghcr.io/prohand/gladys-host-monitoring:2.2.2",
@@ -18,18 +20,24 @@
       "type": "section",
       "label": {
         "en": "Host supervision",
-        "fr": "Supervision de l'hôte"
+        "fr": "Supervision de l'hôte",
+        "de": "Host-Überwachung",
+        "es": "Supervisión del host"
       },
       "description": {
         "en": "One device exposing the health of the machine that runs Gladys: CPU usage, memory usage, disk usage, free disk space and CPU temperature. Everything is read locally from /proc and /sys, no agent and no cloud service involved.",
-        "fr": "Un appareil qui expose la santé de la machine qui fait tourner Gladys : usage CPU, usage mémoire, usage disque, espace disque libre et température du CPU. Tout est lu localement dans /proc et /sys, sans agent ni service cloud."
+        "fr": "Un appareil qui expose la santé de la machine qui fait tourner Gladys : usage CPU, usage mémoire, usage disque, espace disque libre et température du CPU. Tout est lu localement dans /proc et /sys, sans agent ni service cloud.",
+        "de": "Ein Gerät, das den Zustand des Rechners anzeigt, auf dem Gladys läuft: CPU-Auslastung, Arbeitsspeicherauslastung, Festplattenauslastung, freier Speicherplatz und CPU-Temperatur. Alles wird lokal aus /proc und /sys gelesen, ohne Agent und ohne Cloud-Dienst.",
+        "es": "Un dispositivo que muestra el estado de la máquina que ejecuta Gladys: uso de CPU, uso de memoria, uso de disco, espacio libre en disco y temperatura de la CPU. Todo se lee localmente en /proc y /sys, sin agente ni servicio en la nube."
       },
       "links": [
         {
           "url": "https://github.com/prohand/gladys-host-monitoring",
           "label": {
             "en": "Source code and documentation",
-            "fr": "Code source et documentation"
+            "fr": "Code source et documentation",
+            "de": "Quellcode und Dokumentation",
+            "es": "Código fuente y documentación"
           }
         }
       ]
@@ -39,17 +47,23 @@
       "type": "string",
       "label": {
         "en": "Device name",
-        "fr": "Nom de l'appareil"
+        "fr": "Nom de l'appareil",
+        "de": "Gerätename",
+        "es": "Nombre del dispositivo"
       },
       "description": {
         "en": "Name of the device created in Gladys. Useful when several machines are monitored.",
-        "fr": "Nom de l'appareil créé dans Gladys. Utile si vous supervisez plusieurs machines."
+        "fr": "Nom de l'appareil créé dans Gladys. Utile si vous supervisez plusieurs machines.",
+        "de": "Name des in Gladys erstellten Geräts. Nützlich, wenn Sie mehrere Rechner überwachen.",
+        "es": "Nombre del dispositivo creado en Gladys. Útil si supervisa varias máquinas."
       },
       "required": false,
       "default": "Machine hôte",
       "placeholder": {
         "en": "Gladys server",
-        "fr": "Serveur Gladys"
+        "fr": "Serveur Gladys",
+        "de": "Gladys-Server",
+        "es": "Servidor Gladys"
       }
     },
     {
@@ -57,17 +71,23 @@
       "type": "string",
       "label": {
         "en": "Disk path to monitor",
-        "fr": "Chemin du disque à surveiller"
+        "fr": "Chemin du disque à surveiller",
+        "de": "Zu überwachender Festplattenpfad",
+        "es": "Ruta del disco que se supervisa"
       },
       "description": {
         "en": "Path whose filesystem is measured. The default /data is the integration volume, hosted on the same filesystem as your Gladys data.",
-        "fr": "Chemin dont le système de fichiers est mesuré. La valeur /data par défaut est le volume de l'intégration, situé sur le même système de fichiers que vos données Gladys."
+        "fr": "Chemin dont le système de fichiers est mesuré. La valeur /data par défaut est le volume de l'intégration, situé sur le même système de fichiers que vos données Gladys.",
+        "de": "Pfad, dessen Dateisystem gemessen wird. Der Standardwert /data ist das Volume der Integration, das auf demselben Dateisystem liegt wie Ihre Gladys-Daten.",
+        "es": "Ruta cuyo sistema de archivos se mide. El valor predeterminado /data es el volumen de la integración, alojado en el mismo sistema de archivos que sus datos de Gladys."
       },
       "required": false,
       "default": "/data",
       "placeholder": {
         "en": "/data",
-        "fr": "/data"
+        "fr": "/data",
+        "de": "/data",
+        "es": "/data"
       }
     },
     {
@@ -75,17 +95,23 @@
       "type": "string",
       "label": {
         "en": "CPU temperature sensor (optional)",
-        "fr": "Sonde de température CPU (optionnel)"
+        "fr": "Sonde de température CPU (optionnel)",
+        "de": "CPU-Temperatursensor (optional)",
+        "es": "Sensor de temperatura de la CPU (opcional)"
       },
       "description": {
         "en": "Leave empty to auto-detect. Otherwise, the sysfs file to read, e.g. /sys/class/thermal/thermal_zone0/temp.",
-        "fr": "Laissez vide pour une détection automatique. Sinon, le fichier sysfs à lire, par exemple /sys/class/thermal/thermal_zone0/temp."
+        "fr": "Laissez vide pour une détection automatique. Sinon, le fichier sysfs à lire, par exemple /sys/class/thermal/thermal_zone0/temp.",
+        "de": "Leer lassen für die automatische Erkennung. Andernfalls die zu lesende sysfs-Datei, z. B. /sys/class/thermal/thermal_zone0/temp.",
+        "es": "Déjelo vacío para la detección automática. Si no, el archivo sysfs que se leerá, p. ej. /sys/class/thermal/thermal_zone0/temp."
       },
       "required": false,
       "default": "",
       "placeholder": {
         "en": "/sys/class/thermal/thermal_zone0/temp",
-        "fr": "/sys/class/thermal/thermal_zone0/temp"
+        "fr": "/sys/class/thermal/thermal_zone0/temp",
+        "de": "/sys/class/thermal/thermal_zone0/temp",
+        "es": "/sys/class/thermal/thermal_zone0/temp"
       }
     },
     {
@@ -93,11 +119,15 @@
       "type": "section",
       "label": {
         "en": "Refresh rate and history",
-        "fr": "Fréquence et historique"
+        "fr": "Fréquence et historique",
+        "de": "Aktualisierungsrate und Verlauf",
+        "es": "Frecuencia de actualización e historial"
       },
       "description": {
         "en": "Gladys writes one history row per published value, so a host monitor left unchecked fills the database fast. The integration reads the metrics on its own schedule and only publishes a value when it moved more than the thresholds below — with a guaranteed point at least once per maximum interval so the charts stay continuous.",
-        "fr": "Gladys écrit une ligne d'historique par valeur publiée : un moniteur laissé sans garde-fou remplit vite la base. L'intégration lit les métriques à son propre rythme et ne publie une valeur que si elle a bougé de plus que les seuils ci-dessous — avec un point garanti au moins une fois par intervalle maximum pour que les courbes restent continues."
+        "fr": "Gladys écrit une ligne d'historique par valeur publiée : un moniteur laissé sans garde-fou remplit vite la base. L'intégration lit les métriques à son propre rythme et ne publie une valeur que si elle a bougé de plus que les seuils ci-dessous — avec un point garanti au moins une fois par intervalle maximum pour que les courbes restent continues.",
+        "de": "Gladys schreibt für jeden veröffentlichten Wert eine Verlaufszeile, daher füllt eine ungebremste Host-Überwachung die Datenbank schnell. Die Integration liest die Metriken nach ihrem eigenen Takt und veröffentlicht einen Wert nur, wenn er sich stärker als die folgenden Schwellenwerte verändert hat — mit einem garantierten Punkt mindestens einmal pro maximalem Intervall, damit die Diagramme durchgehend bleiben.",
+        "es": "Gladys escribe una fila de historial por cada valor publicado, así que una supervisión del host sin control llena rápidamente la base de datos. La integración lee las métricas a su propio ritmo y solo publica un valor cuando ha variado más que los umbrales siguientes — con un punto garantizado al menos una vez por intervalo máximo para que los gráficos sigan siendo continuos."
       }
     },
     {
@@ -105,11 +135,15 @@
       "type": "number",
       "label": {
         "en": "Refresh interval (s)",
-        "fr": "Intervalle de rafraîchissement (s)"
+        "fr": "Intervalle de rafraîchissement (s)",
+        "de": "Aktualisierungsintervall (s)",
+        "es": "Intervalo de actualización (s)"
       },
       "description": {
         "en": "How often the metrics are read, in seconds. 300 s (5 minutes) is plenty for host supervision.",
-        "fr": "Fréquence de lecture des métriques, en secondes. 300 s (5 minutes) suffit largement pour superviser un hôte."
+        "fr": "Fréquence de lecture des métriques, en secondes. 300 s (5 minutes) suffit largement pour superviser un hôte.",
+        "de": "Wie oft die Metriken gelesen werden, in Sekunden. 300 s (5 Minuten) reichen für die Überwachung eines Hosts völlig aus.",
+        "es": "Frecuencia de lectura de las métricas, en segundos. 300 s (5 minutos) es más que suficiente para supervisar un host."
       },
       "required": false,
       "default": 300,
@@ -121,11 +155,15 @@
       "type": "number",
       "label": {
         "en": "Minimum variation (%)",
-        "fr": "Variation minimale (%)"
+        "fr": "Variation minimale (%)",
+        "de": "Mindeständerung (%)",
+        "es": "Variación mínima (%)"
       },
       "description": {
         "en": "A percentage reading is only published when it moved by at least this many points since the last published value. 0 publishes every reading.",
-        "fr": "Une mesure en pourcentage n'est publiée que si elle a bougé d'au moins autant de points depuis la dernière valeur publiée. 0 publie chaque mesure."
+        "fr": "Une mesure en pourcentage n'est publiée que si elle a bougé d'au moins autant de points depuis la dernière valeur publiée. 0 publie chaque mesure.",
+        "de": "Ein Prozentwert wird nur veröffentlicht, wenn er sich seit dem zuletzt veröffentlichten Wert um mindestens so viele Punkte verändert hat. 0 veröffentlicht jede Messung.",
+        "es": "Una medida en porcentaje solo se publica si ha variado al menos esta cantidad de puntos desde el último valor publicado. 0 publica todas las medidas."
       },
       "required": false,
       "default": 2,
@@ -137,11 +175,15 @@
       "type": "number",
       "label": {
         "en": "Minimum variation (°C)",
-        "fr": "Variation minimale (°C)"
+        "fr": "Variation minimale (°C)",
+        "de": "Mindeständerung (°C)",
+        "es": "Variación mínima (°C)"
       },
       "description": {
         "en": "Same threshold, applied to the CPU temperature.",
-        "fr": "Même seuil, appliqué à la température du CPU."
+        "fr": "Même seuil, appliqué à la température du CPU.",
+        "de": "Derselbe Schwellenwert, angewendet auf die CPU-Temperatur.",
+        "es": "El mismo umbral, aplicado a la temperatura de la CPU."
       },
       "required": false,
       "default": 1,
@@ -153,11 +195,15 @@
       "type": "number",
       "label": {
         "en": "Maximum interval without a point (min)",
-        "fr": "Intervalle maximum sans point (min)"
+        "fr": "Intervalle maximum sans point (min)",
+        "de": "Maximales Intervall ohne Messpunkt (min)",
+        "es": "Intervalo máximo sin punto (min)"
       },
       "description": {
         "en": "Even when nothing moves, each metric is published at least once per this interval so the charts keep a continuous line.",
-        "fr": "Même si rien ne bouge, chaque métrique est publiée au moins une fois par intervalle pour que les courbes gardent une ligne continue."
+        "fr": "Même si rien ne bouge, chaque métrique est publiée au moins une fois par intervalle pour que les courbes gardent une ligne continue.",
+        "de": "Auch wenn sich nichts ändert, wird jede Metrik mindestens einmal pro Intervall veröffentlicht, damit die Diagramme eine durchgehende Linie behalten.",
+        "es": "Aunque nada cambie, cada métrica se publica al menos una vez por intervalo para que los gráficos mantengan una línea continua."
       },
       "required": false,
       "default": 60,
@@ -169,11 +215,15 @@
       "type": "boolean",
       "label": {
         "en": "Keep history",
-        "fr": "Conserver l'historique"
+        "fr": "Conserver l'historique",
+        "de": "Verlauf speichern",
+        "es": "Conservar historial"
       },
       "description": {
         "en": "Applied when the device is created. Turn it off to keep only the live values, with no history row at all.",
-        "fr": "Appliqué à la création de l'appareil. Désactivez-le pour ne garder que les valeurs instantanées, sans aucune ligne d'historique."
+        "fr": "Appliqué à la création de l'appareil. Désactivez-le pour ne garder que les valeurs instantanées, sans aucune ligne d'historique.",
+        "de": "Wird beim Erstellen des Geräts angewendet. Deaktivieren Sie die Option, um nur die aktuellen Werte zu behalten, ganz ohne Verlaufszeilen.",
+        "es": "Se aplica al crear el dispositivo. Desactívelo para conservar solo los valores en tiempo real, sin ninguna fila de historial."
       },
       "required": false,
       "default": true
@@ -183,11 +233,15 @@
       "type": "section",
       "label": {
         "en": "Alerts for scenes",
-        "fr": "Alertes pour les scènes"
+        "fr": "Alertes pour les scènes",
+        "de": "Alarme für Szenen",
+        "es": "Alertas para escenas"
       },
       "description": {
         "en": "When a metric reaches its threshold, the integration fires the \"Host metric alert\" scene trigger once, and once more when the metric comes back down. Use it to be notified of a full disk or an overheating CPU. Set a threshold to 0 to disable that alert.",
-        "fr": "Quand une mesure atteint son seuil, l'intégration déclenche une fois le déclencheur de scène « Alerte sur une mesure de l'hôte », puis une fois encore quand la mesure redescend. Idéal pour être prévenu d'un disque plein ou d'un CPU qui chauffe. Mettez un seuil à 0 pour désactiver cette alerte."
+        "fr": "Quand une mesure atteint son seuil, l'intégration déclenche une fois le déclencheur de scène « Alerte sur une mesure de l'hôte », puis une fois encore quand la mesure redescend. Idéal pour être prévenu d'un disque plein ou d'un CPU qui chauffe. Mettez un seuil à 0 pour désactiver cette alerte.",
+        "de": "Erreicht eine Metrik ihren Schwellenwert, löst die Integration den Szenen-Auslöser „Alarm für eine Host-Metrik“ einmal aus und ein weiteres Mal, wenn die Metrik wieder sinkt. Ideal, um über eine volle Festplatte oder eine überhitzte CPU informiert zu werden. Setzen Sie einen Schwellenwert auf 0, um diesen Alarm zu deaktivieren.",
+        "es": "Cuando una métrica alcanza su umbral, la integración activa una vez el desencadenador de escena «Alerta de una métrica del host», y otra vez cuando la métrica vuelve a bajar. Úselo para recibir un aviso de un disco lleno o de una CPU que se sobrecalienta. Ponga un umbral a 0 para desactivar esa alerta."
       }
     },
     {
@@ -195,11 +249,15 @@
       "type": "number",
       "label": {
         "en": "CPU alert threshold (%)",
-        "fr": "Seuil d'alerte CPU (%)"
+        "fr": "Seuil d'alerte CPU (%)",
+        "de": "CPU-Alarmschwelle (%)",
+        "es": "Umbral de alerta de CPU (%)"
       },
       "description": {
         "en": "The CPU usage is averaged over the refresh interval, so short spikes do not count. 0 disables the alert.",
-        "fr": "L'usage CPU est une moyenne sur l'intervalle de rafraîchissement : les pics courts ne comptent pas. 0 désactive l'alerte."
+        "fr": "L'usage CPU est une moyenne sur l'intervalle de rafraîchissement : les pics courts ne comptent pas. 0 désactive l'alerte.",
+        "de": "Die CPU-Auslastung wird über das Aktualisierungsintervall gemittelt, kurze Spitzen zählen also nicht. 0 deaktiviert den Alarm.",
+        "es": "El uso de CPU se promedia sobre el intervalo de actualización, por lo que los picos cortos no cuentan. 0 desactiva la alerta."
       },
       "required": false,
       "default": 90,
@@ -211,11 +269,15 @@
       "type": "number",
       "label": {
         "en": "Memory alert threshold (%)",
-        "fr": "Seuil d'alerte mémoire (%)"
+        "fr": "Seuil d'alerte mémoire (%)",
+        "de": "Arbeitsspeicher-Alarmschwelle (%)",
+        "es": "Umbral de alerta de memoria (%)"
       },
       "description": {
         "en": "0 disables the alert.",
-        "fr": "0 désactive l'alerte."
+        "fr": "0 désactive l'alerte.",
+        "de": "0 deaktiviert den Alarm.",
+        "es": "0 desactiva la alerta."
       },
       "required": false,
       "default": 90,
@@ -227,11 +289,15 @@
       "type": "number",
       "label": {
         "en": "Disk alert threshold (%)",
-        "fr": "Seuil d'alerte disque (%)"
+        "fr": "Seuil d'alerte disque (%)",
+        "de": "Festplatten-Alarmschwelle (%)",
+        "es": "Umbral de alerta de disco (%)"
       },
       "description": {
         "en": "0 disables the alert.",
-        "fr": "0 désactive l'alerte."
+        "fr": "0 désactive l'alerte.",
+        "de": "0 deaktiviert den Alarm.",
+        "es": "0 desactiva la alerta."
       },
       "required": false,
       "default": 90,
@@ -243,11 +309,15 @@
       "type": "number",
       "label": {
         "en": "CPU temperature alert threshold (°C)",
-        "fr": "Seuil d'alerte température CPU (°C)"
+        "fr": "Seuil d'alerte température CPU (°C)",
+        "de": "Alarmschwelle CPU-Temperatur (°C)",
+        "es": "Umbral de alerta de temperatura de CPU (°C)"
       },
       "description": {
         "en": "0 disables the alert. Ignored when no temperature sensor is found.",
-        "fr": "0 désactive l'alerte. Ignoré si aucune sonde de température n'est trouvée."
+        "fr": "0 désactive l'alerte. Ignoré si aucune sonde de température n'est trouvée.",
+        "de": "0 deaktiviert den Alarm. Wird ignoriert, wenn kein Temperatursensor gefunden wird.",
+        "es": "0 desactiva la alerta. Se ignora si no se encuentra ningún sensor de temperatura."
       },
       "required": false,
       "default": 80,
@@ -260,11 +330,15 @@
       "key": "test_metrics",
       "label": {
         "en": "Read the metrics now",
-        "fr": "Lire les métriques maintenant"
+        "fr": "Lire les métriques maintenant",
+        "de": "Metriken jetzt lesen",
+        "es": "Leer las métricas ahora"
       },
       "description": {
         "en": "Reads every metric immediately and shows the result, without waiting for the next refresh.",
-        "fr": "Lit toutes les métriques immédiatement et affiche le résultat, sans attendre le prochain rafraîchissement."
+        "fr": "Lit toutes les métriques immédiatement et affiche le résultat, sans attendre le prochain rafraîchissement.",
+        "de": "Liest sofort alle Metriken und zeigt das Ergebnis an, ohne auf die nächste Aktualisierung zu warten.",
+        "es": "Lee todas las métricas de inmediato y muestra el resultado, sin esperar a la próxima actualización."
       },
       "timeout_seconds": 30
     },
@@ -272,11 +346,15 @@
       "key": "list_temperature_sensors",
       "label": {
         "en": "List temperature sensors",
-        "fr": "Lister les sondes de température"
+        "fr": "Lister les sondes de température",
+        "de": "Temperatursensoren auflisten",
+        "es": "Listar los sensores de temperatura"
       },
       "description": {
         "en": "Shows the sysfs temperature sensors visible from the container, to fill in the sensor path by hand.",
-        "fr": "Affiche les sondes de température sysfs visibles depuis le conteneur, pour renseigner le chemin à la main."
+        "fr": "Affiche les sondes de température sysfs visibles depuis le conteneur, pour renseigner le chemin à la main.",
+        "de": "Zeigt die im Container sichtbaren sysfs-Temperatursensoren an, um den Sensorpfad von Hand einzutragen.",
+        "es": "Muestra los sensores de temperatura sysfs visibles desde el contenedor, para indicar a mano la ruta del sensor."
       },
       "timeout_seconds": 30
     }
@@ -286,11 +364,15 @@
       "key": "threshold_alert",
       "label": {
         "en": "Host metric alert",
-        "fr": "Alerte sur une mesure de l'hôte"
+        "fr": "Alerte sur une mesure de l'hôte",
+        "de": "Alarm für eine Host-Metrik",
+        "es": "Alerta de una métrica del host"
       },
       "description": {
         "en": "A metric of the host reached its alert threshold, or came back down.",
-        "fr": "Une mesure de l'hôte a atteint son seuil d'alerte, ou est redescendue."
+        "fr": "Une mesure de l'hôte a atteint son seuil d'alerte, ou est redescendue.",
+        "de": "Eine Metrik des Hosts hat ihre Alarmschwelle erreicht oder ist wieder gesunken.",
+        "es": "Una métrica del host ha alcanzado su umbral de alerta o ha vuelto a bajar."
       },
       "fields": [
         {
@@ -298,39 +380,51 @@
           "type": "multi_select",
           "label": {
             "en": "Metrics",
-            "fr": "Mesures"
+            "fr": "Mesures",
+            "de": "Metriken",
+            "es": "Métricas"
           },
           "description": {
             "en": "Leave empty for any metric. The thresholds are set in the integration configuration.",
-            "fr": "Laissez vide pour toutes les mesures. Les seuils se règlent dans la configuration de l'intégration."
+            "fr": "Laissez vide pour toutes les mesures. Les seuils se règlent dans la configuration de l'intégration.",
+            "de": "Leer lassen für alle Metriken. Die Schwellenwerte werden in der Konfiguration der Integration festgelegt.",
+            "es": "Déjelo vacío para cualquier métrica. Los umbrales se ajustan en la configuración de la integración."
           },
           "options": [
             {
               "value": "cpu",
               "label": {
                 "en": "CPU usage",
-                "fr": "Utilisation CPU"
+                "fr": "Utilisation CPU",
+                "de": "CPU-Auslastung",
+                "es": "Uso de CPU"
               }
             },
             {
               "value": "memory",
               "label": {
                 "en": "Memory usage",
-                "fr": "Utilisation mémoire"
+                "fr": "Utilisation mémoire",
+                "de": "Arbeitsspeicherauslastung",
+                "es": "Uso de memoria"
               }
             },
             {
               "value": "disk",
               "label": {
                 "en": "Disk usage",
-                "fr": "Utilisation disque"
+                "fr": "Utilisation disque",
+                "de": "Festplattenauslastung",
+                "es": "Uso de disco"
               }
             },
             {
               "value": "temperature",
               "label": {
                 "en": "CPU temperature",
-                "fr": "Température CPU"
+                "fr": "Température CPU",
+                "de": "CPU-Temperatur",
+                "es": "Temperatura de CPU"
               }
             }
           ]
@@ -340,25 +434,33 @@
           "type": "select",
           "label": {
             "en": "Event",
-            "fr": "Événement"
+            "fr": "Événement",
+            "de": "Ereignis",
+            "es": "Evento"
           },
           "description": {
             "en": "Leave empty for both.",
-            "fr": "Laissez vide pour les deux."
+            "fr": "Laissez vide pour les deux.",
+            "de": "Leer lassen für beide.",
+            "es": "Déjelo vacío para ambos."
           },
           "options": [
             {
               "value": "raised",
               "label": {
                 "en": "Alert raised",
-                "fr": "Alerte déclenchée"
+                "fr": "Alerte déclenchée",
+                "de": "Alarm ausgelöst",
+                "es": "Alerta activada"
               }
             },
             {
               "value": "cleared",
               "label": {
                 "en": "Back to normal",
-                "fr": "Retour à la normale"
+                "fr": "Retour à la normale",
+                "de": "Wieder normal",
+                "es": "Vuelta a la normalidad"
               }
             }
           ]
@@ -370,7 +472,9 @@
           "type": "string",
           "label": {
             "en": "Metric key (cpu, memory, disk, temperature)",
-            "fr": "Clé de la mesure (cpu, memory, disk, temperature)"
+            "fr": "Clé de la mesure (cpu, memory, disk, temperature)",
+            "de": "Schlüssel der Metrik (cpu, memory, disk, temperature)",
+            "es": "Clave de la métrica (cpu, memory, disk, temperature)"
           }
         },
         {
@@ -378,7 +482,9 @@
           "type": "string",
           "label": {
             "en": "Metric name",
-            "fr": "Nom de la mesure"
+            "fr": "Nom de la mesure",
+            "de": "Name der Metrik (Französisch)",
+            "es": "Nombre de la métrica (en francés)"
           }
         },
         {
@@ -386,7 +492,9 @@
           "type": "string",
           "label": {
             "en": "Event (raised, cleared)",
-            "fr": "Événement (raised, cleared)"
+            "fr": "Événement (raised, cleared)",
+            "de": "Ereignis (raised, cleared)",
+            "es": "Evento (raised, cleared)"
           }
         },
         {
@@ -394,7 +502,9 @@
           "type": "number",
           "label": {
             "en": "Measured value",
-            "fr": "Valeur mesurée"
+            "fr": "Valeur mesurée",
+            "de": "Messwert",
+            "es": "Valor medido"
           }
         },
         {
@@ -402,7 +512,9 @@
           "type": "number",
           "label": {
             "en": "Alert threshold",
-            "fr": "Seuil d'alerte"
+            "fr": "Seuil d'alerte",
+            "de": "Alarmschwelle",
+            "es": "Umbral de alerta"
           }
         },
         {
@@ -410,7 +522,9 @@
           "type": "string",
           "label": {
             "en": "Unit (% or °C)",
-            "fr": "Unité (% ou °C)"
+            "fr": "Unité (% ou °C)",
+            "de": "Einheit (% oder °C)",
+            "es": "Unidad (% o °C)"
           }
         },
         {
@@ -418,7 +532,9 @@
           "type": "string",
           "label": {
             "en": "Device name",
-            "fr": "Nom de l'appareil"
+            "fr": "Nom de l'appareil",
+            "de": "Gerätename",
+            "es": "Nombre del dispositivo"
           }
         },
         {
@@ -426,7 +542,9 @@
           "type": "string",
           "label": {
             "en": "Ready-made message (French)",
-            "fr": "Message prêt à envoyer"
+            "fr": "Message prêt à envoyer",
+            "de": "Fertige Nachricht (Französisch)",
+            "es": "Mensaje listo para enviar (en francés)"
           }
         }
       ]
@@ -437,11 +555,15 @@
       "key": "read_metrics",
       "label": {
         "en": "Read the host metrics",
-        "fr": "Lire les mesures de l'hôte"
+        "fr": "Lire les mesures de l'hôte",
+        "de": "Host-Metriken lesen",
+        "es": "Leer las métricas del host"
       },
       "description": {
         "en": "Reads every metric now and makes the values available to the next actions of the scene.",
-        "fr": "Lit toutes les mesures maintenant et rend les valeurs disponibles pour les actions suivantes de la scène."
+        "fr": "Lit toutes les mesures maintenant et rend les valeurs disponibles pour les actions suivantes de la scène.",
+        "de": "Liest jetzt alle Metriken und stellt die Werte den nächsten Aktionen der Szene zur Verfügung.",
+        "es": "Lee ahora todas las métricas y pone los valores a disposición de las siguientes acciones de la escena."
       },
       "timeout_seconds": 30,
       "outputs": [
@@ -450,7 +572,9 @@
           "type": "number",
           "label": {
             "en": "CPU usage (%)",
-            "fr": "Utilisation CPU (%)"
+            "fr": "Utilisation CPU (%)",
+            "de": "CPU-Auslastung (%)",
+            "es": "Uso de CPU (%)"
           }
         },
         {
@@ -458,7 +582,9 @@
           "type": "number",
           "label": {
             "en": "Memory usage (%)",
-            "fr": "Utilisation mémoire (%)"
+            "fr": "Utilisation mémoire (%)",
+            "de": "Arbeitsspeicherauslastung (%)",
+            "es": "Uso de memoria (%)"
           }
         },
         {
@@ -466,7 +592,9 @@
           "type": "number",
           "label": {
             "en": "Disk usage (%)",
-            "fr": "Utilisation disque (%)"
+            "fr": "Utilisation disque (%)",
+            "de": "Festplattenauslastung (%)",
+            "es": "Uso de disco (%)"
           }
         },
         {
@@ -474,7 +602,9 @@
           "type": "number",
           "label": {
             "en": "Free disk space (GiB)",
-            "fr": "Espace disque libre (Gio)"
+            "fr": "Espace disque libre (Gio)",
+            "de": "Freier Speicherplatz (GiB)",
+            "es": "Espacio libre en disco (GiB)"
           }
         },
         {
@@ -482,7 +612,9 @@
           "type": "number",
           "label": {
             "en": "CPU temperature (°C)",
-            "fr": "Température CPU (°C)"
+            "fr": "Température CPU (°C)",
+            "de": "CPU-Temperatur (°C)",
+            "es": "Temperatura de CPU (°C)"
           }
         },
         {
@@ -490,7 +622,9 @@
           "type": "string",
           "label": {
             "en": "Summary (French)",
-            "fr": "Résumé"
+            "fr": "Résumé",
+            "de": "Zusammenfassung (Französisch)",
+            "es": "Resumen (en francés)"
           }
         }
       ]
@@ -501,11 +635,15 @@
       "key": "host_health",
       "label": {
         "en": "Host health",
-        "fr": "Santé de l'hôte"
+        "fr": "Santé de l'hôte",
+        "de": "Host-Zustand",
+        "es": "Estado del host"
       },
       "description": {
         "en": "CPU, memory and disk gauges, temperature, usage history and alerts.",
-        "fr": "Jauges CPU, mémoire et disque, température, historique et alertes."
+        "fr": "Jauges CPU, mémoire et disque, température, historique et alertes.",
+        "de": "Anzeigen für CPU, Arbeitsspeicher und Festplatte, Temperatur, Verlauf und Alarme.",
+        "es": "Indicadores de CPU, memoria y disco, temperatura, historial de uso y alertas."
       },
       "icon": "cpu",
       "settings": [
@@ -514,7 +652,9 @@
           "type": "select",
           "label": {
             "en": "Chart period",
-            "fr": "Période du graphique"
+            "fr": "Période du graphique",
+            "de": "Diagrammzeitraum",
+            "es": "Periodo del gráfico"
           },
           "required": false,
           "default": "last-day",
@@ -523,49 +663,63 @@
               "value": "none",
               "label": {
                 "en": "No chart",
-                "fr": "Pas de graphique"
+                "fr": "Pas de graphique",
+                "de": "Kein Diagramm",
+                "es": "Sin gráfico"
               }
             },
             {
               "value": "last-hour",
               "label": {
                 "en": "Last hour",
-                "fr": "Dernière heure"
+                "fr": "Dernière heure",
+                "de": "Letzte Stunde",
+                "es": "Última hora"
               }
             },
             {
               "value": "last-twelve-hours",
               "label": {
                 "en": "Last 12 hours",
-                "fr": "12 dernières heures"
+                "fr": "12 dernières heures",
+                "de": "Letzte 12 Stunden",
+                "es": "Últimas 12 horas"
               }
             },
             {
               "value": "last-day",
               "label": {
                 "en": "Last 24 hours",
-                "fr": "24 dernières heures"
+                "fr": "24 dernières heures",
+                "de": "Letzte 24 Stunden",
+                "es": "Últimas 24 horas"
               }
             },
             {
               "value": "last-three-days",
               "label": {
                 "en": "Last 3 days",
-                "fr": "3 derniers jours"
+                "fr": "3 derniers jours",
+                "de": "Letzte 3 Tage",
+                "es": "Últimos 3 días"
               }
             },
             {
               "value": "last-week",
               "label": {
                 "en": "Last week",
-                "fr": "Dernière semaine"
+                "fr": "Dernière semaine",
+                "de": "Letzte Woche",
+                "es": "Última semana"
               }
             },
             {
               "value": "last-month",
               "label": {
                 "en": "Last month",
-                "fr": "Dernier mois"
+                "fr": "Dernier mois",
+                "de": "Letzter Monat",
+                "es": "Último mes"
               }
             }
           ]

@@ -140,7 +140,7 @@ SDK's own `validateWidgetContent`; run the integration with
 │  │  └─ alerts.js                   #   threshold alerts: one scene event per transition
 │  ├─ lifecycle.js                   # (re)connection sequence: refresh loops armed first
 │  └─ config.js                      # config defaults, normalization and clamping
-├─ docs/{en,fr}.md                   # user documentation (re-hosted by Gladys)
+├─ docs/{en,fr,de,es}.md             # user documentation (re-hosted by Gladys)
 ├─ gladys-assistant-integration.json # manifest (name, config schema, image…)
 ├─ Dockerfile                        # Node 24 Alpine, read-only rootfs ready
 └─ .github/workflows/                # CI, multi-arch build, UI-driven release
