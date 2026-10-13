@@ -6,6 +6,8 @@ All notable changes to this integration are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-10-13
+
 ### Added
 
 - German and Spanish translations (configuration screen, messages, widgets,
@@ -119,7 +121,8 @@ First public release.
 - Détecter les appareils créés avec d'anciennes fonctionnalités
 - Publier un instantané complet quand l'appareil est créé
 
-[Unreleased]: https://github.com/prohand/gladys-host-monitoring/compare/v2.2.2...HEAD
+[Unreleased]: https://github.com/prohand/gladys-host-monitoring/compare/v2.3.0...HEAD
+[2.3.0]: https://github.com/prohand/gladys-host-monitoring/compare/v2.2.2...v2.3.0
 [2.2.2]: https://github.com/prohand/gladys-host-monitoring/compare/v2.2.1...v2.2.2
 [2.2.1]: https://github.com/prohand/gladys-host-monitoring/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/prohand/gladys-host-monitoring/compare/v2.1.1...v2.2.0
