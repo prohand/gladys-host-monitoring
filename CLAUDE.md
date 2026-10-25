@@ -22,7 +22,7 @@ node --test test/throttle.test.js          # one file
 node --test --test-name-pattern "heartbeat"  # one test by name
 npm run lint                               # ESLint
 npm run format:check                       # Prettier (CI gate; npm run format to fix)
-npx github:GladysAssistant/integration-store .   # store manifest validator, before a release
+npx github:GladysAssistant/integration-store --skip-image-check .   # store validator (PR-safe)
 ```
 
 CI runs `format:check`, `lint`, `test` on Node 24 (the version in the Dockerfile) for every push and
@@ -119,9 +119,11 @@ the same `default`, and `normalizeConfig` clamps to the manifest's `min`/`max`. 
 an action in one place and that test tells you about the other.
 
 The same test pins the store version rules: declaring `categories` needs `gladys_version` ≥ 4.86.0,
-and `widgets` / `scene_triggers` / `scene_actions` need ≥ 5.1.0, because older cores reject any
-manifest field they do not know — the field and the minimum version move together or the install
-breaks. It also keeps the 5.1 capabilities in sync: declared scene triggers/actions/widgets ↔
+`widgets` / `scene_triggers` / `scene_actions` need ≥ 5.1.0, and `keywords` / `countries` / `music`
+need ≥ 5.3.0 (the floor today: `keywords` is declared), because older cores reject any manifest
+field they do not know — the field and the minimum version move together or the install breaks.
+It also pins the categories to the store vocabulary (`servers` here), the `keywords` shape (1–10
+unique terms of 2–30 characters) and the absence of `countries` (worldwide). It also keeps the 5.1 capabilities in sync: declared scene triggers/actions/widgets ↔
 blueprint handlers, event data keys ⊆ the trigger's `fields` + `variables`, `read_metrics` outputs
 ↔ declared `outputs`, widget setting options ↔ `WIDGET_CHART_INTERVALS`. Scene and widget keys are
 stored by users' scenes and dashboards: never rename or remove one.

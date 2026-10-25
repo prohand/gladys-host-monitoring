@@ -16,11 +16,11 @@ servicio en la nube, ningún dato que salga de su casa.
 
 ## Instalación
 
-Requiere **Gladys 5.1 o posterior**. En una versión anterior, la integración
+Requiere **Gladys 5.3 o posterior**. En una versión anterior, la integración
 simplemente no aparece en el catálogo: actualice Gladys primero.
 
 1. Instale la integración desde el catálogo de Gladys (categoría
-   **Servicios**).
+   **Servidores**).
 2. Abra la pestaña **Configuración** y guarde (los valores predeterminados
    sirven para la gran mayoría de instalaciones).
 3. Vaya a la pestaña **Descubrir**: aparece el dispositivo «Machine hôte»;

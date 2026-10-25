@@ -10,6 +10,7 @@
 #      `docker_image` tag, so the indexer and the image stay in lockstep);
 #   3. commits the bump and pushes the `vX.Y.Z` tag;
 #   4. calls build.yml to publish the multi-arch image (`:X.Y.Z` + `:latest`).
+#   5. re-runs the store admission checks on the tag, image included.
 #
 # Why call build.yml instead of relying on the tag push: a tag pushed with the
 # default GITHUB_TOKEN does NOT trigger other workflows, so we invoke the build
@@ -123,3 +124,25 @@ jobs:
     uses: ./.github/workflows/github-release.yml
     permissions:
       contents: write
+
+  # The store indexer's full admission checks, image included, against the
+  # released tag: the last word before the hourly indexation picks it up. Runs
+  # once build.yml has pushed the image the manifest references.
+  store:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout the released tag
+        uses: actions/checkout@v7
+        with:
+          ref: v${{ needs.prepare.outputs.version }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Validate like the store indexer
+        run: npx --yes github:GladysAssistant/integration-store .

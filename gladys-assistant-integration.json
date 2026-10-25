@@ -10,9 +10,21 @@
   },
   "version": "2.3.1",
   "docker_image": "ghcr.io/prohand/gladys-host-monitoring:2.3.1",
-  "gladys_version": ">=5.1.0",
+  "gladys_version": ">=5.3.0",
   "cover_image": "https://raw.githubusercontent.com/prohand/gladys-host-monitoring/main/cover.png",
-  "categories": ["services"],
+  "categories": ["servers"],
+  "keywords": [
+    "system monitor",
+    "server",
+    "raspberry pi",
+    "ram",
+    "load",
+    "linux",
+    "health",
+    "storage",
+    "thermal",
+    "nuc"
+  ],
   "transports": ["local"],
   "config_schema": [
     {

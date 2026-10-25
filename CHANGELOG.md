@@ -6,6 +6,18 @@ All notable changes to this integration are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Search keywords in the store catalog ("raspberry pi", "ram", "linux"…).
+
+### Changed
+
+- **Gladys 5.3.0 or later is now required** (the catalog search keywords need it).
+- The integration moves to the new **Servers** shelf of the catalog (was "Services").
+- `@gladysassistant/integration-sdk` updated to 0.16.0.
+- The release workflow runs the full store admission checks on the published image;
+  pull requests run them without the image check.
+
 ## [2.3.1] - 2026-10-23
 
 - Maintenance release, no functional change.
