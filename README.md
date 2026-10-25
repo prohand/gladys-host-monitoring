@@ -201,20 +201,27 @@ The same three checks run on every push and pull request
 Before tagging a release, the store validator can be run locally:
 
 ```bash
-npx github:GladysAssistant/integration-store .
+npx github:GladysAssistant/integration-store --skip-image-check .
 ```
+
+`--skip-image-check` skips the one check a pull request cannot pass (the image
+of a bumped version is not pushed yet): the CI runs it like that on pull
+requests, and the Release workflow runs the full check on the tag once the
+image is published.
 
 ## Publishing
 
-The manifest declares `categories: ["services"]` — the catalog shelf the
+The manifest declares `categories: ["servers"]` — the catalog shelf the
 integration sits on, since Gladys 4.86 browses the store by category and an
 integration declaring none is only reachable through "All" and search. Host
-supervision has no shelf of its own: "Services" is the generic one, where
-"Network & presence", "Weather & environment" or "Energy" would each promise
-something this integration does not do. Declaring the field forces
-`gladys_version` to start at **4.86.0 or later** — older cores validate
+supervision long sat on the generic "Services" shelf; the "Servers" shelf,
+added to the store vocabulary in 2026-10, is exactly what it does. It also
+declares `keywords` (search-only terms: "raspberry pi", "ram", "linux"…) and
+no `countries`: a machine runs Gladys anywhere. `categories` needs
+`gladys_version` ≥ 4.86.0, `keywords` ≥ **5.3.0** — older cores validate
 manifests against a strict field allowlist and reject any unknown top-level
-field — a coupling `test/manifest.test.js` pins.
+field — so the integration requires **Gladys 5.3.0 or later**, a coupling
+`test/manifest.test.js` pins.
 
 1. Make the repository public and add the GitHub topic
    `gladys-assistant-integration`.

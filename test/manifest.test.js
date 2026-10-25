@@ -148,21 +148,78 @@ test('the manifest stays within the store limits', () => {
   assert.match(manifest.cover_image, /^https:\/\//);
 });
 
+// The store's controlled vocabulary of catalog shelves (Gladys 5.3 added the
+// last four). An unknown key is not rejected, it is DROPPED with a warning: a
+// typo silently costs the integration its shelf.
+const CATALOG_CATEGORIES = [
+  'climate',
+  'lighting',
+  'energy',
+  'security',
+  'multimedia',
+  'appliances',
+  'environment',
+  'protocols',
+  'network',
+  'notifications',
+  'assistants',
+  'services',
+  'transport',
+  'vehicles',
+  'servers',
+  'leisure',
+];
+
 test('declaring catalog categories requires Gladys >= 4.86.0', () => {
-  // The controlled vocabulary is the store validator's job (an unknown key is
-  // dropped with a warning there, not rejected). What no external check can
-  // catch is the coupling: cores older than 4.86 validate manifests against a
-  // strict field allowlist and reject *any* unknown top-level field, so
-  // declaring `categories` while still claiming compatibility with an older
-  // Gladys turns a catalog entry into a cryptic install failure.
+  // What no external check can catch is the coupling: cores older than 4.86
+  // validate manifests against a strict field allowlist and reject *any*
+  // unknown top-level field, so declaring `categories` while still claiming
+  // compatibility with an older Gladys turns a catalog entry into a cryptic
+  // install failure.
   assert.ok(
     manifest.categories.length >= 1 && manifest.categories.length <= 3,
     'the store accepts 1 to 3 categories',
   );
+  assert.equal(new Set(manifest.categories).size, manifest.categories.length);
+  for (const category of manifest.categories) {
+    assert.ok(CATALOG_CATEGORIES.includes(category), `unknown catalog category "${category}"`);
+  }
   const [major, minor] = minimumGladysVersion();
   assert.ok(
     major > 4 || (major === 4 && minor >= 86),
     `categories requires gladys_version >= 4.86.0, got "${manifest.gladys_version}"`,
+  );
+});
+
+test('the search keywords follow the store rules', () => {
+  // 1 to 10 search-only terms of 2 to 30 characters, unique once trimmed and
+  // lowercased: the store rejects the manifest otherwise.
+  const { keywords } = manifest;
+  assert.ok(Array.isArray(keywords) && keywords.length >= 1 && keywords.length <= 10);
+  const normalized = keywords.map((keyword) => keyword.trim().toLowerCase());
+  assert.equal(new Set(normalized).size, keywords.length, 'keywords must be unique');
+  for (const keyword of normalized) {
+    assert.ok(keyword.length >= 2 && keyword.length <= 30, `keyword "${keyword}" length`);
+  }
+});
+
+test('the integration is worldwide: no countries declared', () => {
+  // `countries` hides an integration from the catalog shelves of every other
+  // country. A machine runs Gladys anywhere.
+  assert.equal(manifest.countries, undefined);
+});
+
+test('declaring keywords, countries or music requires Gladys >= 5.3.0', () => {
+  // Gladys 5.3 is the first core accepting these fields; an older one rejects
+  // the whole manifest over an unknown field.
+  const fields = ['keywords', 'countries', 'music'].filter(
+    (field) => manifest[field] !== undefined,
+  );
+  assert.ok(fields.length > 0);
+  const [major, minor] = minimumGladysVersion();
+  assert.ok(
+    major > 5 || (major === 5 && minor >= 3),
+    `${fields.join(', ')} requires gladys_version >= 5.3.0, got "${manifest.gladys_version}"`,
   );
 });
 
